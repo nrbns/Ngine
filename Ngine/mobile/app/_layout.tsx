@@ -1,10 +1,12 @@
-// Root layout with navigation
-import { Stack, useRouter, useSegments } from 'expo-router';
+// Root layout with real authentication and navigation
+import { Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { View, ActivityIndicator } from 'react-native';
+import { supabase, signInAnonymously } from '../services/supabase';
+import { Session } from '@supabase/supabase-js';
 import * as Notifications from 'expo-notifications';
-import { View, Text, ActivityIndicator } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestPermissions, scheduleDailyReminder } from '../utils/notifications';
+import { colors } from '../design-system';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -15,47 +17,47 @@ Notifications.setNotificationHandler({
 });
 
 export default function RootLayout() {
+  const [session, setSession] = useState<Session | null>(null);
   const [isReady, setIsReady] = useState(false);
-  const [initialRoute, setInitialRoute] = useState<string | null>(null);
-  const segments = useSegments();
-  const router = useRouter();
 
   useEffect(() => {
-    // Check onboarding status
-    AsyncStorage.getItem('onboarding_complete').then((onboardingComplete) => {
-      if (!onboardingComplete) {
-        setInitialRoute('/onboarding');
-      } else {
-        setInitialRoute('/index');
-      }
-      setIsReady(true);
-    });
-
-    // Request notification permissions and schedule daily reminder
+    // Set up notifications
     requestPermissions().then((granted) => {
       if (granted) {
         scheduleDailyReminder('21:00'); // 9 PM daily reminder
       }
     });
+
+    // Set up authentication
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setIsReady(true);
+    });
+
+    // Listen for auth changes
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session);
+
+      // Auto-sign in anonymously if no session
+      if (event === 'SIGNED_OUT' || !session) {
+        try {
+          await signInAnonymously();
+        } catch (error) {
+          console.error('Anonymous sign in failed:', error);
+        }
+      }
+    });
   }, []);
-
-  useEffect(() => {
-    if (!isReady || !initialRoute) return;
-
-    const inAuthGroup = segments[0] === 'onboarding';
-    const inAppGroup = segments[0] === 'index' || segments[0] === 'profile' || segments[0] === 'aims' || segments[0] === 'create' || segments[0] === 'checkin' || segments[0] === 'recovery' || segments[0] === 'summary';
-
-    if (initialRoute === '/onboarding' && !inAuthGroup) {
-      router.replace('/onboarding');
-    } else if (initialRoute === '/index' && inAuthGroup) {
-      router.replace('/index');
-    }
-  }, [isReady, initialRoute, segments]);
 
   if (!isReady) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+      <View style={{
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: colors.background,
+      }}>
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }

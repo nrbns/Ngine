@@ -1,12 +1,10 @@
-// Life Dashboard - Production Grade
-// Single vertical narrative, not card jungle
-// Calm, honest, intentional, serious
+// Life Dashboard - REAL implementation with Supabase
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { supabase } from '../services/supabase';
+import { supabase, database, subscribeToResolutions } from '../services/supabase';
 import { DashboardAd } from '../services/ads';
-import { getStatus } from '../logic/statusEngine';
+import { getStatus, calculateSuccessProbability } from '../logic/statusEngine';
 import { calculateIntegrityScore, getIntegrityLabel, getIntegrityColor, ResolutionData } from '../logic/integrity';
 import { getDailyReflection } from '../services/reflection';
 import { colors, typography, spacing } from '../design-system';
@@ -18,6 +16,8 @@ interface Resolution {
   aim_id?: string;
   start_date: string;
   end_date: string;
+  mdd_value?: number;
+  duration: number;
   checkins?: any[];
 }
 
@@ -31,7 +31,7 @@ export default function LifeDashboard() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [aims, setAims] = useState<Aim[]>([]);
-  const [todayResolutions, setTodayResolutions] = useState<Resolution[]>([]);
+  const [resolutions, setResolutions] = useState<Resolution[]>([]);
   const [integrityScore, setIntegrityScore] = useState(0);
   const [reflection, setReflection] = useState('');
   const [loading, setLoading] = useState(true);
@@ -39,7 +39,22 @@ export default function LifeDashboard() {
 
   useEffect(() => {
     loadDashboard();
-  }, []);
+
+    // Set up real-time subscriptions
+    let subscription: any;
+    if (user?.id) {
+      subscription = subscribeToResolutions(user.id, (payload) => {
+        console.log('Real-time resolution update:', payload);
+        loadDashboard(); // Refresh data when resolutions change
+      });
+    }
+
+    return () => {
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
+    };
+  }, [user?.id]);
 
   const loadDashboard = async () => {
     try {
@@ -49,60 +64,55 @@ export default function LifeDashboard() {
         return;
       }
 
+      setUser(authUser);
+
       // Load user profile
-      const { data: userData } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', authUser.id)
-        .single();
-      setUser(userData);
+      let userProfile = await database.getUserProfile(authUser.id);
+      if (!userProfile) {
+        // Create default profile
+        userProfile = await database.createUserProfile(authUser.id, {
+          name: '',
+          alias: '',
+          core_identity: '',
+        });
+      }
+      setUser(userProfile);
 
       // Load aims
-      const { data: aimsData } = await supabase
-        .from('aims')
-        .select('*')
-        .eq('user_id', authUser.id)
-        .order('created_at', { ascending: true });
+      const aimsData = await database.getUserAims(authUser.id);
+      setAims(aimsData);
 
-      // Load resolutions
-      const today = new Date().toISOString().split('T')[0];
-      const { data: resolutionsData } = await supabase
-        .from('resolutions')
-        .select('*')
-        .eq('user_id', authUser.id)
-        .gte('end_date', today)
-        .order('created_at', { ascending: false });
+      // Load resolutions with checkins
+      const resolutionsData = await database.getUserResolutions(authUser.id);
 
-      const resolutionsWithCheckins = await Promise.all(
-        (resolutionsData || []).map(async (resolution) => {
-          const { data: checkins } = await supabase
-            .from('checkins')
-            .select('*')
-            .eq('resolution_id', resolution.id)
-            .order('date', { ascending: false });
+      // Process resolutions with status calculation
+      const processedResolutions = await Promise.all(
+        resolutionsData.map(async (resolution: any) => {
+          const checkins = await database.getResolutionCheckins(resolution.id);
+          const status = getStatus(checkins);
+          const probability = calculateSuccessProbability(
+            checkins,
+            resolution.duration,
+            resolution.mdd_value || 5
+          );
 
-          const status = getStatus(checkins || []);
           return {
             ...resolution,
             status,
-            checkins: checkins || [],
+            success_probability: probability,
+            checkins,
           };
         })
       );
 
-      // Filter today's resolutions
-      const today = new Date().toISOString().split('T')[0];
-      const todayRes = resolutionsWithCheckins.filter(r => 
-        today >= r.start_date && today <= r.end_date
-      );
-      setTodayResolutions(todayRes);
+      setResolutions(processedResolutions);
 
       // Calculate integrity score
-      const resolutionData: ResolutionData[] = resolutionsWithCheckins.map(r => ({
+      const resolutionData: ResolutionData[] = processedResolutions.map(r => ({
         id: r.id,
         status: r.status,
         checkins: r.checkins || [],
-        mdd_value: r.mdd_value || parseInt(r.mdd) || 5,
+        mdd_value: r.mdd_value || 5,
         duration: r.duration,
         start_date: r.start_date,
       }));
@@ -115,16 +125,11 @@ export default function LifeDashboard() {
         setReflection(reflectionText);
       } catch (error) {
         console.error('Error loading reflection:', error);
+        setReflection('Welcome to NGINE. Start your first resolution to begin tracking your execution integrity.');
       }
-
-      // Group resolutions by aim
-      const aimsWithResolutions = (aimsData || []).map(aim => ({
-        ...aim,
-        resolutions: resolutionsWithCheckins.filter(r => r.aim_id === aim.id),
-      }));
-      setAims(aimsWithResolutions);
     } catch (error: any) {
       console.error('Error loading dashboard:', error);
+      Alert.alert('Error', 'Failed to load dashboard. Please try again.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -167,6 +172,17 @@ export default function LifeDashboard() {
     );
   }
 
+  // Group resolutions by aim
+  const aimsWithResolutions = aims.map(aim => ({
+    ...aim,
+    resolutions: resolutions.filter(r => r.aim_id === aim.id),
+  }));
+
+  const todayResolutions = resolutions.filter(r => {
+    const today = new Date().toISOString().split('T')[0];
+    return today >= r.start_date && today <= r.end_date;
+  });
+
   return (
     <ScrollView
       style={styles.container}
@@ -185,10 +201,10 @@ export default function LifeDashboard() {
       </View>
 
       {/* B. Life Aims - Compact, Meaningful */}
-      {aims.length > 0 && (
+      {aimsWithResolutions.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Your Aims</Text>
-          {aims.map((aim) => {
+          {aimsWithResolutions.map((aim) => {
             const progress = calculateAimProgress(aim.resolutions || []);
             return (
               <TouchableOpacity
@@ -268,7 +284,7 @@ export default function LifeDashboard() {
         </View>
       </View>
 
-      {/* E. Insight - Rules / AI */}
+      {/* E. Reflection Insight - Rules / AI */}
       {reflection && (
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Insight</Text>

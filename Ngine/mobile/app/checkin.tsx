@@ -1,11 +1,8 @@
-// Daily Check-In - Sacred Screen
-// White background, no ads, no icons, no scroll
-// Three questions. Done.
-// Must feel SERIOUS
+// Daily Check-In - REAL implementation with Supabase
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { supabase } from '../services/supabase';
+import { database, subscribeToCheckins } from '../services/supabase';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { BLOCKERS } from '../constants/blockers';
 import { getStatus } from '../logic/statusEngine';
@@ -15,11 +12,12 @@ import { colors, typography, spacing } from '../design-system';
 export default function CheckInScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const [resolution, setResolution] = useState<any>(null);
   const [done, setDone] = useState<'yes' | 'partial' | 'no' | null>(null);
   const [blocker, setBlocker] = useState<string>('');
   const [energy, setEnergy] = useState(3);
   const [loading, setLoading] = useState(false);
-  const [resolution, setResolution] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -28,63 +26,100 @@ export default function CheckInScreen() {
   }, [id]);
 
   const loadResolution = async () => {
-    const { data } = await supabase
-      .from('resolutions')
-      .select('*')
-      .eq('id', id)
-      .single();
-    
-    if (data) setResolution(data);
+    if (!id) return;
+
+    setLoading(true);
+    try {
+      // Get resolution details
+      const { data: resolutionData, error } = await supabase
+        .from('resolutions')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      setResolution(resolutionData);
+
+      // Set up real-time subscription for check-ins
+      const subscription = subscribeToCheckins(id, (payload) => {
+        console.log('New check-in:', payload.new);
+        // Could update UI here if needed
+      });
+
+      return () => {
+        supabase.removeChannel(subscription);
+      };
+    } catch (error: any) {
+      console.error('Error loading resolution:', error);
+      Alert.alert('Error', 'Failed to load resolution');
+      router.back();
+    } finally {
+      setLoading(false);
+    }
   };
 
   const submitCheckin = async () => {
     if (!done || !id) return;
 
-    setLoading(true);
+    setIsSubmitting(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
+      // Create check-in
+      await database.createCheckin(id, {
+        execution: done,
+        blocker: blocker || undefined,
+        energy,
+      });
 
-      await supabase
-        .from('checkins')
-        .upsert({
-          resolution_id: id,
-          date: today,
-          execution: done,
-          blocker: blocker || null,
-          energy,
-        }, {
-          onConflict: 'resolution_id,date'
-        });
+      // Get all check-ins to calculate new status
+      const checkins = await database.getResolutionCheckins(id, 30);
+      const newStatus = getStatus(checkins);
 
-      const { data: checkins } = await supabase
-        .from('checkins')
-        .select('*')
-        .eq('resolution_id', id)
-        .order('date', { ascending: false });
-
-      const newStatus = getStatus(checkins || []);
-
-      await supabase
+      // Update resolution status
+      const { error: updateError } = await supabase
         .from('resolutions')
         .update({ status: newStatus })
         .eq('id', id);
 
+      if (updateError) throw updateError;
+
+      // Trigger AI if needed
       if (shouldTriggerAI(newStatus) && resolution) {
-        getAIInsight({
-          resolution: resolution.title,
-          status: newStatus,
-          recent_checkins: checkins?.slice(0, 5) || [],
-        }).catch(console.error);
+        try {
+          const insight = await getAIInsight({
+            resolution: resolution.title,
+            status: newStatus,
+            recent_checkins: checkins.slice(0, 5),
+          });
+          console.log('AI Insight generated:', insight);
+        } catch (aiError) {
+          console.error('AI insight failed:', aiError);
+        }
       }
 
+      Alert.alert('Success', 'Check-in saved successfully!');
       router.back();
     } catch (error: any) {
       console.error('Error saving check-in:', error);
-      alert(error.message || 'Failed to save check-in');
+      Alert.alert('Error', error.message || 'Failed to save check-in');
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.loading}>Loading resolution...</Text>
+      </View>
+    );
+  }
+
+  const today = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 
   return (
     <View style={styles.container}>
@@ -92,6 +127,8 @@ export default function CheckInScreen() {
         {resolution && (
           <Text style={styles.resolutionTitle}>{resolution.title}</Text>
         )}
+
+        <Text style={styles.date}>{today}</Text>
 
         {/* Question 1: Did you complete MDD? */}
         <View style={styles.question}>
@@ -165,9 +202,9 @@ export default function CheckInScreen() {
         )}
 
         <PrimaryButton
-          title="Save"
+          title="Save Check-in"
           onPress={submitCheckin}
-          loading={loading}
+          loading={isSubmitting}
           disabled={!done}
         />
       </View>
@@ -178,7 +215,7 @@ export default function CheckInScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background, // White background
+    backgroundColor: colors.background,
   },
   content: {
     flex: 1,
@@ -186,9 +223,21 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xxl + 20,
     justifyContent: 'center',
   },
+  loading: {
+    textAlign: 'center',
+    marginTop: spacing.xxl,
+    color: colors.textSecondary,
+    ...typography.body,
+  },
   resolutionTitle: {
     ...typography.h2,
     color: colors.textPrimary,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  date: {
+    ...typography.body,
+    color: colors.textSecondary,
     marginBottom: spacing.xl,
     textAlign: 'center',
   },
@@ -272,3 +321,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
 });
+
+// Add missing import
+import { supabase } from '../services/supabase';
