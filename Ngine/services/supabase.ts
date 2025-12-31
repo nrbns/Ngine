@@ -279,4 +279,75 @@ export const database = {
       if (error) throw error;
     }
   },
+
+  // GOAL PROOFS OPERATIONS (NEW - Proof-of-progress gallery)
+  async uploadGoalProof(resolutionId: string, userId: string, file: any, note?: string) {
+    // Upload file to Supabase storage
+    const fileName = `proofs/${Date.now()}_${file.fileName || 'proof.jpg'}`;
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('goal-proofs')
+      .upload(fileName, file);
+
+    if (uploadError) throw uploadError;
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('goal-proofs')
+      .getPublicUrl(fileName);
+
+    // Save record to database
+    const { data, error } = await supabase
+      .from('goal_proofs')
+      .insert({
+        resolution_id: resolutionId,
+        user_id: userId,
+        file_url: urlData.publicUrl,
+        file_type: file.type?.includes('image') ? 'image' : 'document',
+        note: note || null,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async getResolutionGoalProofs(resolutionId: string, limit = 50) {
+    const { data, error } = await supabase
+      .from('goal_proofs')
+      .select('*')
+      .eq('resolution_id', resolutionId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  async deleteGoalProof(proofId: string) {
+    // Get proof record first to get file URL
+    const { data: proof, error: fetchError } = await supabase
+      .from('goal_proofs')
+      .select('file_url')
+      .eq('id', proofId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    // Delete file from storage
+    if (proof.file_url) {
+      const fileName = proof.file_url.split('/').pop();
+      await supabase.storage
+        .from('goal-proofs')
+        .remove([`proofs/${fileName}`]);
+    }
+
+    // Delete record from database
+    const { error } = await supabase
+      .from('goal_proofs')
+      .delete()
+      .eq('id', proofId);
+
+    if (error) throw error;
+  },
 };

@@ -96,8 +96,22 @@ export default function CheckInScreen() {
         }
       }
 
-      Alert.alert('Success', 'Check-in saved successfully!');
-      router.back();
+      // Prompt to add proof
+      Alert.alert(
+        'Check-in Saved!',
+        'Would you like to add proof of your progress?',
+        [
+          {
+            text: 'Add Proof',
+            onPress: () => router.replace(`/resolution?id=${id}`),
+          },
+          {
+            text: 'Maybe Later',
+            style: 'cancel',
+            onPress: () => router.back(),
+          },
+        ]
+      );
     } catch (error: any) {
       console.error('Error saving check-in:', error);
       Alert.alert('Error', error.message || 'Failed to save check-in');

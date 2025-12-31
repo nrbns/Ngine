@@ -1,4 +1,4 @@
--- NGINE Database Schema (Complete - Life Profile & Aims)
+-- NGINE Database Schema (Complete - Life Profile & Aims & Gallery)
 -- Run this in Supabase SQL Editor
 
 -- Users table (extended with identity)
@@ -63,6 +63,17 @@ CREATE TABLE IF NOT EXISTS checkins (
   UNIQUE(resolution_id, date)
 );
 
+-- GOAL PROOFS TABLE (NEW - Proof-of-progress gallery)
+CREATE TABLE IF NOT EXISTS goal_proofs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  resolution_id UUID NOT NULL REFERENCES resolutions(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  file_url TEXT NOT NULL,
+  file_type TEXT NOT NULL CHECK (file_type IN ('image', 'document', 'screenshot')),
+  note TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- AI insights table
 CREATE TABLE IF NOT EXISTS ai_insights (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -93,6 +104,9 @@ CREATE INDEX IF NOT EXISTS idx_resolutions_aim_id ON resolutions(aim_id);
 CREATE INDEX IF NOT EXISTS idx_resolutions_status ON resolutions(status);
 CREATE INDEX IF NOT EXISTS idx_checkins_resolution_id ON checkins(resolution_id);
 CREATE INDEX IF NOT EXISTS idx_checkins_date ON checkins(date);
+CREATE INDEX IF NOT EXISTS idx_goal_proofs_resolution_id ON goal_proofs(resolution_id);
+CREATE INDEX IF NOT EXISTS idx_goal_proofs_user_id ON goal_proofs(user_id);
+CREATE INDEX IF NOT EXISTS idx_goal_proofs_created_at ON goal_proofs(created_at);
 CREATE INDEX IF NOT EXISTS idx_ai_insights_user_id ON ai_insights(user_id);
 CREATE INDEX IF NOT EXISTS idx_daily_reflections_user_date ON daily_reflections(user_id, date);
 
@@ -102,6 +116,7 @@ ALTER TABLE user_focus_areas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE aims ENABLE ROW LEVEL SECURITY;
 ALTER TABLE resolutions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE checkins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE goal_proofs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_insights ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_reflections ENABLE ROW LEVEL SECURITY;
 
@@ -143,8 +158,8 @@ CREATE POLICY "Users can delete own resolutions" ON resolutions
 CREATE POLICY "Users can view own checkins" ON checkins
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM resolutions 
-      WHERE resolutions.id = checkins.resolution_id 
+      SELECT 1 FROM resolutions
+      WHERE resolutions.id = checkins.resolution_id
       AND resolutions.user_id = auth.uid()
     )
   );
@@ -152,8 +167,8 @@ CREATE POLICY "Users can view own checkins" ON checkins
 CREATE POLICY "Users can create own checkins" ON checkins
   FOR INSERT WITH CHECK (
     EXISTS (
-      SELECT 1 FROM resolutions 
-      WHERE resolutions.id = checkins.resolution_id 
+      SELECT 1 FROM resolutions
+      WHERE resolutions.id = checkins.resolution_id
       AND resolutions.user_id = auth.uid()
     )
   );
@@ -161,11 +176,24 @@ CREATE POLICY "Users can create own checkins" ON checkins
 CREATE POLICY "Users can update own checkins" ON checkins
   FOR UPDATE USING (
     EXISTS (
-      SELECT 1 FROM resolutions 
-      WHERE resolutions.id = checkins.resolution_id 
+      SELECT 1 FROM resolutions
+      WHERE resolutions.id = checkins.resolution_id
       AND resolutions.user_id = auth.uid()
     )
   );
+
+-- GOAL PROOFS POLICIES (NEW)
+CREATE POLICY "Users can view own goal proofs" ON goal_proofs
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create own goal proofs" ON goal_proofs
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own goal proofs" ON goal_proofs
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own goal proofs" ON goal_proofs
+  FOR DELETE USING (auth.uid() = user_id);
 
 -- AI insights policies
 CREATE POLICY "Users can view own insights" ON ai_insights

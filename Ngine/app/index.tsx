@@ -249,12 +249,18 @@ export default function LifeDashboard() {
             <TouchableOpacity
               key={resolution.id}
               style={styles.executionRow}
-              onPress={() => router.push(`/checkin?id=${resolution.id}`)}
+              onPress={() => router.push(`/resolution?id=${resolution.id}`)}
             >
               <Text style={styles.executionTitle}>{resolution.title}</Text>
               <Text style={styles.executionStatus}>
                 {getStatusEmoji(resolution.status)}
               </Text>
+              <TouchableOpacity
+                style={styles.quickCheckinButton}
+                onPress={() => router.push(`/checkin?id=${resolution.id}`)}
+              >
+                <Text style={styles.quickCheckinText}>Check In</Text>
+              </TouchableOpacity>
             </TouchableOpacity>
           ))
         )}
@@ -410,6 +416,18 @@ const styles = StyleSheet.create({
   },
   executionStatus: {
     fontSize: 20,
+    marginRight: spacing.md,
+  },
+  quickCheckinButton: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  quickCheckinText: {
+    ...typography.caption,
+    color: '#ffffff',
+    fontWeight: '600',
   },
   integrityContainer: {
     gap: spacing.sm,
