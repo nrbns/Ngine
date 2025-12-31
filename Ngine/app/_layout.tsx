@@ -75,6 +75,7 @@ export default function RootLayout() {
       <Stack.Screen name="create" />
       <Stack.Screen name="checkin" />
       <Stack.Screen name="recovery" />
+      <Stack.Screen name="resolution" />
       <Stack.Screen name="summary" />
     </Stack>
   );
