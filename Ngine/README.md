@@ -83,6 +83,7 @@ INSIGHTS (What does this mean?)
 - Honest status tracking
 - Recovery without guilt
 - AI insights when you drift
+- **Proof-of-progress gallery** - Visual evidence of execution
 
 ---
 
@@ -91,9 +92,11 @@ INSIGHTS (What does this mean?)
 ### **What Works:**
 1. **Onboarding** → Welcome + How It Works + Ethics
 2. **Dashboard** → Identity + Aims + Today's tasks + Integrity score
-3. **Check-in** → Yes/Partial/No + Blocker + Energy
-4. **Real-time updates** → Status changes automatically
-5. **Integrity tracking** → Overall execution score
+3. **Check-in** → Yes/Partial/No + Blocker + Energy + Proof prompt
+4. **Resolution Detail** → Gallery + Execution timeline + Status
+5. **Proof Gallery** → Upload photos/screenshots as evidence
+6. **Real-time updates** → Status changes automatically
+7. **Integrity tracking** → Overall execution score
 
 ### **Coming Soon:**
 - Profile management
