@@ -134,7 +134,6 @@
 
 ### **1. Set Up Environment**
 ```bash
-cd mobile
 # Create .env with your Supabase credentials
 ```
 

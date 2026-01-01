@@ -16,7 +16,6 @@ A **complete, working, execution-ready** NGINE app with:
 ### Step 1: Install Dependencies
 
 ```bash
-cd mobile
 npm install
 ```
 
@@ -41,7 +40,6 @@ EXPO_PUBLIC_ADMOB_REWARDED_ID=ca-app-pub-xxx  # Optional for ads
 ### Step 4: Run the App
 
 ```bash
-cd mobile
 npm start
 ```
 
