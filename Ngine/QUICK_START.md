@@ -89,9 +89,20 @@ npm start
 
 5. **Check In**
    - Click resolution on dashboard
-   - Answer 3 questions
-   - Save
+   - Answer 3 questions (use buttons `btn-exec-yes`, `btn-exec-partial`, `btn-exec-no`)
+   - Save (`testID: submit-button`)
    - Verify status updates
+
+6. **Progress Gallery (Proofs)**
+   - Open a resolution
+   - Click `+ Add Proof`
+   - Choose Take Photo / Upload File
+   - In mock mode, files are stored locally (no Supabase required)
+
+**Quick test IDs**
+- Create Resolution: `input-title`, `input-why`, `btn-save-resolution`
+- Check-in: `btn-exec-yes`, `btn-exec-partial`, `btn-exec-no`, `submit-button`
+- Proofs: `proof-<id>` (on uploaded proofs)
 
 ---
 
