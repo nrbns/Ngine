@@ -18,18 +18,20 @@ describe('ProofGallery note flow (mock mode)', () => {
     const userId = 'user-1';
 
     // Mock ImagePicker to return an asset
+    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'granted' });
     (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({ canceled: false, assets: [{ uri: 'file://note.jpg' }] });
 
     // Mock Alert to automatically choose the "Choose from Gallery" option
     jest.spyOn(Alert, 'alert').mockImplementation((title, message, buttons) => {
-      const chooseBtn = buttons?.find(b => (b as any).text === 'Choose from Gallery');
-      (chooseBtn as any).onPress();
+      // Call the second button (Choose from Gallery) if available
+      const btn = buttons && buttons[1];
+      if (btn && typeof (btn as any).onPress === 'function') (btn as any).onPress();
     });
 
     const { getByText, getByTestId, queryByTestId } = render(<ProofGallery resolutionId={resolutionId} userId={userId} />);
 
     // Start add flow
-    const addBtn = getByText('+ Add Proof');
+    const addBtn = await waitFor(() => getByText('+ Add Proof'));
     fireEvent.press(addBtn);
 
     // Wait for note modal input to appear

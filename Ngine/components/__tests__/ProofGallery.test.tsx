@@ -18,21 +18,27 @@ describe('ProofGallery (mock mode)', () => {
     const userId = 'user-1';
 
     // Mock ImagePicker to return an asset
+    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'granted' });
     (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({ canceled: false, assets: [{ uri: 'file://mock.jpg' }] });
 
     // Mock Alert to automatically choose the "Choose from Gallery" option
     jest.spyOn(Alert, 'alert').mockImplementation((title, message, buttons) => {
-      const chooseBtn = buttons?.find(b => (b as any).text === 'Choose from Gallery');
-      // call the onPress handler
-      (chooseBtn as any).onPress();
+      const btn = buttons && buttons[1];
+      if (btn && typeof (btn as any).onPress === 'function') (btn as any).onPress();
     });
 
     const { getByText, getByTestId, queryAllByTestId } = render(<ProofGallery resolutionId={resolutionId} userId={userId} />);
 
-    expect(getByText('No proofs yet')).toBeTruthy();
+    await waitFor(() => expect(getByText('No proofs yet')).toBeTruthy());
 
-    const addBtn = getByText('+ Add Proof');
+    const addBtn = await waitFor(() => getByText('+ Add Proof'));
+
     fireEvent.press(addBtn);
+
+    // Wait for note modal and press Upload (no note)
+    await waitFor(() => expect(getByTestId('input-proof-note')).toBeTruthy());
+    const uploadBtn = getByTestId('btn-upload-proof');
+    fireEvent.press(uploadBtn);
 
     // wait for upload to finish and AsyncStorage to be updated
     await waitFor(async () => {

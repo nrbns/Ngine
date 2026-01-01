@@ -6,7 +6,7 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ id: 'res-1' }),
 }));
 
-jest.mock('../config/supabase', () => ({
+jest.mock('../../config/supabase', () => ({
   callEdgeFunction: jest.fn().mockResolvedValue({}),
 }));
 

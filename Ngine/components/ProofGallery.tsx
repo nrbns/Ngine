@@ -16,9 +16,11 @@ declare const process: {
   };
 };
 
-const IS_SUPABASE_CONFIGURED = !(
-  process?.env?.EXPO_PUBLIC_SUPABASE_URL?.includes('your_supabase') ||
-  process?.env?.EXPO_PUBLIC_SUPABASE_KEY?.includes('your_supabase')
+const IS_SUPABASE_CONFIGURED = !!(
+  process?.env?.EXPO_PUBLIC_SUPABASE_URL &&
+  process?.env?.EXPO_PUBLIC_SUPABASE_KEY &&
+  !process.env.EXPO_PUBLIC_SUPABASE_URL.includes('your_supabase') &&
+  !process.env.EXPO_PUBLIC_SUPABASE_KEY.includes('your_supabase')
 );
 const MOCK_PROOFS_KEY = (resolutionId: string) => `mock_proofs_${resolutionId}`;
 
@@ -44,6 +46,10 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
   const [noteModalVisible, setNoteModalVisible] = useState(false);
   const [pickedAsset, setPickedAsset] = useState<ImagePicker.ImagePickerAsset | undefined>(undefined);
   const [note, setNote] = useState('');
+
+  // Viewer state
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewedProof, setViewedProof] = useState<GoalProof | null>(null);
 
   useEffect(() => {
     loadProofs();
