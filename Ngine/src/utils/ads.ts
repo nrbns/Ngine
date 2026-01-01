@@ -19,16 +19,31 @@ export const defaultAdConfig: AdConfig = {
   showDuringFailure: false,
 };
 
+import { Platform } from 'react-native';
+
 // Placeholder functions - implement with actual AdMob SDK
 export async function showNativeBanner() {
-  // TODO: Implement native banner ad
-  console.log('Show native banner ad');
+  if (Platform.OS === 'web') {
+    // no-op on web
+    return;
+  }
+  // For now, rely on the native banner component in `services/ads`
+  console.log('Show native banner ad (stub - native implementation required)');
 }
 
 export async function showRewardedAd(): Promise<boolean> {
-  // TODO: Implement rewarded ad
-  // Returns true if user watched ad and earned reward
-  console.log('Show rewarded ad');
-  return Promise.resolve(true);
+  if (Platform.OS === 'web') {
+    // Simulate watching ad on web
+    await new Promise((r) => setTimeout(r, 1200));
+    return true;
+  }
+
+  try {
+    const { showRewardedAd: show } = await import('../../services/ads');
+    return await show();
+  } catch (err) {
+    console.warn('Rewarded ad helper failed; simulating', err);
+    return false;
+  }
 }
 

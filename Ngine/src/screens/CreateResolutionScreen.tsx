@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../config/supabase';
@@ -28,7 +28,7 @@ export default function CreateResolutionScreen() {
       const endDate = new Date();
       endDate.setDate(startDate.getDate() + durationDays);
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('resolutions')
         .insert({
           user_id: user.id,

@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
+import ThemeProvider from '../components/ThemeProvider';
+import { colors, spacing } from '../../design-system';
 import { useRouter } from 'expo-router';
-import { supabase, callEdgeFunction } from '../config/supabase';
+import { callEdgeFunction } from '../config/supabase';
 import { Resolution } from '../types';
-import { getStatusEmoji, getStatusColor, getStatusLabel } from '../utils/status';
+import { getStatusEmoji, getStatusLabel } from '../utils/status';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -39,19 +41,20 @@ export default function DashboardScreen() {
   });
 
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
-      <View style={styles.header}>
-        <Text style={styles.title}>Dashboard</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => router.push('/create-resolution')}
-        >
-          <Text style={styles.addButtonText}>+ New</Text>
-        </TouchableOpacity>
-      </View>
+    <ThemeProvider>
+      <ScrollView
+        style={styles.container}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>Life Dashboard</Text>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => router.push('/create-resolution')}
+          >
+            <Text style={styles.addButtonText}>+ New</Text>
+          </TouchableOpacity>
+        </View>
 
       {loading ? (
         <Text style={styles.loading}>Loading...</Text>
@@ -128,26 +131,28 @@ export default function DashboardScreen() {
           </View>
         </>
       )}
-    </ScrollView>
+      </ScrollView>
+    </ThemeProvider>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#2c3e50', // Dark navy background like mockup
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 24,
-    paddingBottom: 16,
+    paddingTop: 48,
+    backgroundColor: '#34495e',
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
-    color: '#111827',
+    color: '#ffffff',
   },
   addButton: {
     backgroundColor: '#3b82f6',
@@ -157,13 +162,13 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   loading: {
     textAlign: 'center',
     marginTop: 48,
-    color: '#6b7280',
+    color: '#ecf0f1',
   },
   empty: {
     padding: 48,
@@ -171,7 +176,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    color: '#6b7280',
+    color: '#ecf0f1',
     marginBottom: 16,
   },
   emptyButton: {
@@ -186,13 +191,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   card: {
-    backgroundColor: '#ffffff',
-    marginHorizontal: 24,
-    marginBottom: 16,
-    padding: 20,
+    backgroundColor: '#3c5266', // Card background from mockup
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 16,
     borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3b82f6',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -201,35 +204,35 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cardTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: '#ffffff',
     flex: 1,
   },
   statusEmoji: {
-    fontSize: 24,
+    fontSize: 20,
   },
   statusLabel: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 16,
+    fontSize: 13,
+    color: '#bdc3c7',
+    marginBottom: 12,
   },
   cardStats: {
     flexDirection: 'row',
     gap: 16,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   stat: {
     flex: 1,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: '#3b82f6',
   },
   statLabel: {
-    fontSize: 12,
-    color: '#6b7280',
+    fontSize: 11,
+    color: '#95a5a6',
     marginTop: 4,
   },
   checkinButton: {
@@ -240,20 +243,21 @@ const styles = StyleSheet.create({
   },
   checkinButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
   adSlot: {
-    height: 100,
-    backgroundColor: '#e5e7eb',
-    margin: 24,
+    height: 80,
+    backgroundColor: '#34495e',
+    margin: 16,
+    marginTop: 8,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   adText: {
-    color: '#9ca3af',
-    fontSize: 14,
+    color: '#7f8c8d',
+    fontSize: 12,
   },
 });
 
