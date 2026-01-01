@@ -1,3 +1,5 @@
+/// <reference types="jest" />
+import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,8 +20,8 @@ describe('ProofGallery (mock mode)', () => {
     const userId = 'user-1';
 
     // Mock ImagePicker to return an asset
-    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'granted' });
-    (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({ canceled: false, assets: [{ uri: 'file://mock.jpg' }] });
+    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.MockedFunction<typeof ImagePicker.requestMediaLibraryPermissionsAsync>).mockResolvedValue({ status: 'granted' });
+    (ImagePicker.launchImageLibraryAsync as jest.MockedFunction<typeof ImagePicker.launchImageLibraryAsync>).mockResolvedValue({ canceled: false, assets: [{ uri: 'file://mock.jpg', width: 100, height: 100 }] });
 
     // Mock Alert to automatically choose the "Choose from Gallery" option
     jest.spyOn(Alert, 'alert').mockImplementation((title, message, buttons) => {

@@ -1,16 +1,30 @@
 // Resolution Card Component
-import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { StatusBadge, Status } from './StatusBadge';
-import { Resolution } from '../types';
-import { colors, typography, spacing, borderRadius } from '../design-system';
+import { StatusBadge, Status } from '../../components/StatusBadge';
+import { colors, spacing, borderRadius } from '../../design-system';
+
+// Local minimal resolution type to avoid cross-module type conflicts
+interface SmallResolution {
+  id?: string;
+  title: string;
+  why?: string;
+  mdd_text?: string;
+  mdd?: string;
+  duration_days?: number;
+  duration?: number;
+  status: Status | string;
+}
 
 interface ResolutionCardProps {
-  resolution: Resolution;
+  resolution: SmallResolution;
   onPress: () => void;
 }
 
 export function ResolutionCard({ resolution, onPress }: ResolutionCardProps) {
+  // normalize possible snake_case fields from backend to the typed Resolution shape
+  const mddText = (resolution as any).mdd_text ?? (resolution as any).mddText ?? '—';
+  const durationDays = (resolution as any).duration_days ?? (resolution as any).durationDays ?? 0;
+
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>
       <View style={styles.header}>
@@ -22,7 +36,7 @@ export function ResolutionCard({ resolution, onPress }: ResolutionCardProps) {
       )}
       <View style={styles.stats}>
         <Text style={styles.stat}>
-          MDD: {resolution.mdd_text || '—'} • Duration: {resolution.duration_days || 0} days
+          MDD: {mddText} • Duration: {durationDays} days
         </Text>
       </View>
     </TouchableOpacity>
@@ -62,4 +76,3 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
   },
 });
-

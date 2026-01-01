@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import ThemeProvider from '../components/ThemeProvider';
 import IntegrityMeter from '../components/IntegrityMeter';
+import { ResolutionCard } from '../components/ResolutionCard';
 import EnvBanner from '../components/EnvBanner';
 import { colors, typography, spacing, borderRadius } from '../../design-system';
 import { useRouter } from 'expo-router';
 import { callEdgeFunction } from '../config/supabase';
 import { Resolution } from '../types';
-import { getStatusEmoji, getStatusLabel } from '../utils/status';
+
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -78,58 +79,18 @@ export default function DashboardScreen() {
       ) : (
         <>
           {todayResolution && (
-            <TouchableOpacity
-              style={styles.card}
+            <ResolutionCard
+              resolution={todayResolution}
               onPress={() => router.push(`/checkin/${todayResolution.id}`)}
-            >
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>{todayResolution.title}</Text>
-                <Text style={styles.statusEmoji}>
-                  {getStatusEmoji(todayResolution.status)}
-                </Text>
-              </View>
-              <Text style={styles.statusLabel}>
-                {getStatusLabel(todayResolution.status)}
-              </Text>
-              <View style={styles.cardStats}>
-                <View style={styles.stat}>
-                  <Text style={styles.statValue}>
-                    {todayResolution.success_probability || 0}%
-                  </Text>
-                  <Text style={styles.statLabel}>Success Probability</Text>
-                </View>
-                <View style={styles.stat}>
-                  <Text style={styles.statValue}>
-                    {todayResolution.days_remaining || 0}
-                  </Text>
-                  <Text style={styles.statLabel}>Days Remaining</Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={styles.checkinButton}
-                onPress={() => router.push(`/checkin/${todayResolution.id}`)}
-              >
-                <Text style={styles.checkinButtonText}>Daily Check-in</Text>
-              </TouchableOpacity>
-            </TouchableOpacity>
+            />
           )}
 
           {resolutions.filter(r => r.id !== todayResolution?.id).map((resolution) => (
-            <TouchableOpacity
+            <ResolutionCard
               key={resolution.id}
-              style={styles.card}
+              resolution={resolution}
               onPress={() => router.push(`/resolution/${resolution.id}`)}
-            >
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>{resolution.title}</Text>
-                <Text style={styles.statusEmoji}>
-                  {getStatusEmoji(resolution.status)}
-                </Text>
-              </View>
-              <Text style={styles.statusLabel}>
-                {getStatusLabel(resolution.status)}
-              </Text>
-            </TouchableOpacity>
+            />
           ))}
 
           {/* Ad slot placeholder */}
