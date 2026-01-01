@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { callEdgeFunction } from '../config/supabase';
 import { CheckInStatus } from '../types';
@@ -31,23 +31,37 @@ export default function CheckInScreen() {
   const handleSubmit = async () => {
     if (!execution) return;
 
-    setLoading(true);
-    try {
-      await callEdgeFunction('checkin', {
-        resolution_id: id,
-        date: today,
-        execution,
-        blocker: blocker || null,
-        energy,
-      });
+    // Confirm submission
+    Alert.alert(
+      'Submit Check-in',
+      'Are you sure you want to submit this check-in?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Submit',
+          onPress: async () => {
+            setLoading(true);
+            try {
+              await callEdgeFunction('checkin', {
+                resolution_id: id,
+                date: today,
+                execution,
+                blocker: blocker || null,
+                energy,
+              });
 
-      router.back();
-    } catch (error: any) {
-      console.error('Error saving check-in:', error);
-      alert(error.message || 'Failed to save check-in');
-    } finally {
-      setLoading(false);
-    }
+              Alert.alert('Saved', 'Check-in saved successfully');
+              router.back();
+            } catch (error: any) {
+              console.error('Error saving check-in:', error);
+              Alert.alert('Error', error.message || 'Failed to save check-in');
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -207,6 +221,7 @@ export default function CheckInScreen() {
         )}
 
         <TouchableOpacity
+          testID="submit-button"
           style={[styles.submitButton, (!execution || loading) && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           disabled={!execution || loading}
