@@ -1,11 +1,10 @@
-import React from 'react';
+
 import { View, Text, StyleSheet } from 'react-native';
-import { colors, typography, spacing } from '../../design-system';
+import { typography, spacing } from '../../design-system';
 
 export default function EnvBanner() {
   const supabaseOk = process.env.EXPO_PUBLIC_SUPABASE_URL && process.env.EXPO_PUBLIC_SUPABASE_KEY && !process.env.EXPO_PUBLIC_SUPABASE_URL.includes('your_supabase');
   const openaiOk = !!process.env.EXPO_PUBLIC_OPENAI_KEY && !process.env.EXPO_PUBLIC_OPENAI_KEY.includes('your_openai');
-  const admobOk = !!process.env.EXPO_PUBLIC_ADMOB_BANNER_ID && !!process.env.EXPO_PUBLIC_ADMOB_REWARDED_ID;
 
   if (supabaseOk && openaiOk) return null; // Nothing to show
 

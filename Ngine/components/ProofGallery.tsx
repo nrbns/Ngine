@@ -317,7 +317,7 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
               <TouchableOpacity style={styles.modalButton} onPress={() => { setNoteModalVisible(false); setPickedAsset(undefined); }}>
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.modalPrimary]} onPress={() => pickedAsset && uploadProof(pickedAsset, note)}>
+              <TouchableOpacity testID="btn-upload-proof" style={[styles.modalButton, styles.modalPrimary]} onPress={() => pickedAsset && uploadProof(pickedAsset, note)}>
                 <Text style={[styles.modalButtonText, styles.modalPrimaryText]}>{uploading ? 'Uploading...' : 'Upload'}</Text>
               </TouchableOpacity>
             </View>

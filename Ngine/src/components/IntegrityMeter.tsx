@@ -1,6 +1,6 @@
-import React from 'react';
+
 import { View, Text, StyleSheet } from 'react-native';
-import { colors, typography, spacing } from '../../design-system';
+import { typography, spacing } from '../../design-system';
 
 interface IntegrityMeterProps {
   resolutions: any[];

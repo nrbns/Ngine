@@ -45,6 +45,8 @@ export default function ResolutionDetailScreen() {
   }, [id]);
 
   const loadResolution = async () => {
+    if (!id) return;
+
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) return;
@@ -169,10 +171,12 @@ export default function ResolutionDetailScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Progress Gallery</Text>
         {user && (
-          <ProofGallery
-            resolutionId={resolution.id}
-            userId={user.id}
-          />
+          <View style={{ marginTop: 8 }}>
+            <ProofGallery
+              resolutionId={resolution.id}
+              userId={user.id}
+            />
+          </View>
         )}
       </View>
 
@@ -223,6 +227,15 @@ export default function ResolutionDetailScreen() {
   );
 }
 
+const shadow = {
+  // cross-platform shadow for cards
+  elevation: 2,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.12,
+  shadowRadius: 4,
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -242,12 +255,15 @@ const styles = StyleSheet.create({
   },
   section: {
     padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    // Use card style
+    backgroundColor: colors.darkSurface,
+    marginHorizontal: 16,
+    marginBottom: spacing.md,
+    borderRadius: 12,
   },
   title: {
     ...typography.h1,
-    color: colors.textPrimary,
+    color: colors.darkTextPrimary,
     marginBottom: spacing.sm,
   },
   aimBadge: {
@@ -279,7 +295,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     padding: spacing.lg,
     borderRadius: 12,
-    ...colors.shadow,
+    ...shadow,
   },
   statusEmoji: {
     fontSize: 32,
@@ -345,7 +361,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     padding: spacing.md,
     borderRadius: 8,
-    ...colors.shadow,
+    ...shadow,
   },
   timelineHeader: {
     flexDirection: 'row',
