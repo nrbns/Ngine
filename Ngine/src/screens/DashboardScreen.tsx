@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import ThemeProvider from '../components/ThemeProvider';
-import { colors, spacing } from '../../design-system';
+import IntegrityMeter from '../components/IntegrityMeter';
+import EnvBanner from '../components/EnvBanner';
 import { useRouter } from 'expo-router';
 import { callEdgeFunction } from '../config/supabase';
 import { Resolution } from '../types';
@@ -55,6 +56,11 @@ export default function DashboardScreen() {
             <Text style={styles.addButtonText}>+ New</Text>
           </TouchableOpacity>
         </View>
+
+        <EnvBanner />
+
+        {/* Integrity Meter */}
+        <IntegrityMeter resolutions={resolutions} />
 
       {loading ? (
         <Text style={styles.loading}>Loading...</Text>
