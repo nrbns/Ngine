@@ -249,6 +249,7 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
               key={proof.id}
               style={styles.proofCard}
               onLongPress={() => deleteProof(proof.id)}
+              testID={`proof-${proof.id}`}
             >
               <Image
                 source={{ uri: proof.file_url }}
