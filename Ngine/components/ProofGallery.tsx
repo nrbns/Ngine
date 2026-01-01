@@ -1,13 +1,25 @@
 // Proof-of-Progress Gallery Component
 // Shows evidence that goals are actually happening
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert, Modal, TextInput } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { database } from '../services/supabase';
 import { colors, typography, spacing } from '../design-system';
 
-const IS_SUPABASE_CONFIGURED = !(process.env.EXPO_PUBLIC_SUPABASE_URL?.includes('your_supabase') || process.env.EXPO_PUBLIC_SUPABASE_KEY?.includes('your_supabase'));
+// Minimal ambient declaration so TypeScript knows about process.env in this environment.
+// This avoids needing @types/node while keeping the checks safe for Expo / React Native.
+declare const process: {
+  env?: {
+    EXPO_PUBLIC_SUPABASE_URL?: string;
+    EXPO_PUBLIC_SUPABASE_KEY?: string;
+  };
+};
+
+const IS_SUPABASE_CONFIGURED = !(
+  process?.env?.EXPO_PUBLIC_SUPABASE_URL?.includes('your_supabase') ||
+  process?.env?.EXPO_PUBLIC_SUPABASE_KEY?.includes('your_supabase')
+);
 const MOCK_PROOFS_KEY = (resolutionId: string) => `mock_proofs_${resolutionId}`;
 
 interface GoalProof {
@@ -27,6 +39,11 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
   const [proofs, setProofs] = useState<GoalProof[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+
+  // Note modal state
+  const [noteModalVisible, setNoteModalVisible] = useState(false);
+  const [pickedAsset, setPickedAsset] = useState<ImagePicker.ImagePickerAsset | undefined>(undefined);
+  const [note, setNote] = useState('');
 
   useEffect(() => {
     loadProofs();
@@ -84,6 +101,14 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
     );
   };
 
+  // After picking an asset, prompt for an optional note before uploading
+  const handlePickedAsset = async (asset: ImagePicker.ImagePickerAsset) => {
+    setPickedAsset(asset);
+    setNote('');
+    setNoteModalVisible(true);
+  };
+
+
   const openCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
@@ -98,7 +123,7 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
     });
 
     if (!result.canceled && result.assets[0]) {
-      await uploadProof(result.assets[0]);
+      await handlePickedAsset(result.assets[0]);
     }
   };
 
@@ -110,11 +135,11 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
     });
 
     if (!result.canceled && result.assets[0]) {
-      await uploadProof(result.assets[0]);
+      await handlePickedAsset(result.assets[0]);
     }
   };
 
-  const uploadProof = async (asset: ImagePicker.ImagePickerAsset) => {
+  const uploadProof = async (asset: ImagePicker.ImagePickerAsset, note?: string) => {
     setUploading(true);
     try {
       if (!IS_SUPABASE_CONFIGURED) {
@@ -123,7 +148,7 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
           id: `mock_${Date.now()}`,
           file_url: asset.uri,
           file_type: 'image',
-          note: null,
+          note: note || undefined,
           created_at: new Date().toISOString(),
         } as GoalProof;
 
@@ -147,7 +172,7 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
         type: 'image/jpeg',
       };
 
-      await database.uploadGoalProof(resolutionId, userId, file);
+      await database.uploadGoalProof(resolutionId, userId, file, note);
       await loadProofs(); // Refresh the gallery
 
       Alert.alert('Success', 'Proof added to your progress gallery!');
@@ -156,6 +181,8 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
       Alert.alert('Error', 'Failed to upload proof. Please try again.');
     } finally {
       setUploading(false);
+      setNoteModalVisible(false);
+      setPickedAsset(undefined);
     }
   };
 
@@ -239,15 +266,15 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.gallery}
-        >
+        <View style={styles.grid}>
           {proofs.map((proof) => (
             <TouchableOpacity
               key={proof.id}
               style={styles.proofCard}
+              onPress={() => {
+                setViewedProof(proof);
+                setViewerVisible(true);
+              }}
               onLongPress={() => deleteProof(proof.id)}
               testID={`proof-${proof.id}`}
             >
@@ -266,12 +293,55 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
               </View>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
       )}
 
       <Text style={styles.hint}>
         Long press any proof to delete it
       </Text>
+
+      {/* Note Modal */}
+      <Modal visible={noteModalVisible} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Add a note (optional)</Text>
+            <TextInput
+              testID="input-proof-note"
+              style={styles.modalInput}
+              placeholder="Add a short note about this proof"
+              placeholderTextColor="#9ca3af"
+              value={note}
+              onChangeText={setNote}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalButton} onPress={() => { setNoteModalVisible(false); setPickedAsset(undefined); }}>
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalButton, styles.modalPrimary]} onPress={() => pickedAsset && uploadProof(pickedAsset, note)}>
+                <Text style={[styles.modalButtonText, styles.modalPrimaryText]}>{uploading ? 'Uploading...' : 'Upload'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Viewer Modal */}
+      <Modal visible={viewerVisible} transparent animationType="fade">
+        <View style={styles.viewerBackdrop}>
+          <TouchableOpacity style={styles.viewerClose} onPress={() => setViewerVisible(false)}>
+            <Text style={styles.viewerCloseText}>Close</Text>
+          </TouchableOpacity>
+          {viewedProof && (
+            <Image source={{ uri: viewedProof.file_url }} style={styles.viewerImage} resizeMode="contain" />
+          )}
+          {viewedProof?.note && (
+            <View style={styles.viewerNoteCard}>
+              <Text style={styles.viewerNoteText}>{viewedProof.note}</Text>
+            </View>
+          )}
+        </View>
+      </Modal>
+
     </View>
   );
 }
@@ -339,14 +409,20 @@ const styles = StyleSheet.create({
   gallery: {
     paddingVertical: spacing.sm,
   },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
   proofCard: {
-    width: 120,
-    height: 120,
+    width: 140,
+    height: 100,
     marginRight: spacing.md,
+    marginBottom: spacing.md,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: colors.darkSurface,
-    ...colors.shadows.sm,
+    ...colors.shadow,
   },
   proofImage: {
     width: '100%',
@@ -375,7 +451,81 @@ const styles = StyleSheet.create({
     color: colors.darkTextSecondary,
     textAlign: 'center',
     marginTop: spacing.md,
-  },  addButtonDisabled: {
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCard: {
+    width: '90%',
+    backgroundColor: colors.darkSurface,
+    borderRadius: 12,
+    padding: spacing.md,
+  },
+  modalTitle: {
+    ...typography.h3,
+    color: colors.darkTextPrimary,
+    marginBottom: spacing.sm,
+  },
+  modalInput: {
+    backgroundColor: '#2b3f50',
+    color: '#ffffff',
+    padding: spacing.sm,
+    borderRadius: 8,
+    marginBottom: spacing.md,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
+  },
+  modalButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+    backgroundColor: '#3c5266',
+  },
+  modalPrimary: {
+    backgroundColor: colors.accent,
+  },
+  modalButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  modalPrimaryText: {
+    color: '#ffffff',
+  },
+  viewerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  viewerImage: {
+    width: '90%',
+    height: '70%',
+    marginBottom: spacing.md,
+  },
+  viewerNoteCard: {
+    padding: spacing.sm,
+    backgroundColor: '#2b3f50',
+    borderRadius: 8,
+  },
+  viewerNoteText: {
+    color: '#ffffff',
+  },
+  viewerClose: {
+    position: 'absolute',
+    top: 48,
+    right: 24,
+  },
+  viewerCloseText: {
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  addButtonDisabled: {
     opacity: 0.5,
   },
   addButtonText: {
@@ -424,7 +574,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: colors.surface,
-    ...colors.shadow,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    elevation: 2,
   },
   proofImage: {
     width: '100%',
