@@ -21,6 +21,12 @@ export const colors = {
   // Accent
   accent: '#3b82f6',
   accentHover: '#2563eb',
+
+  // Dark theme tokens (used for the mobile UI mockups)
+  darkBackground: '#2c3e50',
+  darkSurface: '#3c5266',
+  darkTextPrimary: '#ffffff',
+  darkTextSecondary: '#bdc3c7',
 };
 
 export const typography = {

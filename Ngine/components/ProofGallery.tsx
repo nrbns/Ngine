@@ -237,7 +237,7 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
 const styles = StyleSheet.create({
   container: {
     padding: spacing.lg,
-    backgroundColor: colors.background,
+    backgroundColor: colors.darkBackground,
   },
   header: {
     flexDirection: 'row',
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h3,
-    color: colors.textPrimary,
+    color: colors.darkTextPrimary,
   },
   addButton: {
     paddingHorizontal: spacing.md,
@@ -256,6 +256,84 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   addButtonDisabled: {
+    opacity: 0.5,
+  },
+  addButtonText: {
+    ...typography.bodySmall,
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  loading: {
+    textAlign: 'center',
+    color: colors.darkTextSecondary,
+    ...typography.body,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+  },
+  emptyText: {
+    ...typography.h3,
+    color: colors.darkTextSecondary,
+    marginBottom: spacing.sm,
+  },
+  emptySubtext: {
+    ...typography.bodySmall,
+    color: colors.textTertiary,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  emptyButton: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.accent,
+    borderRadius: 8,
+  },
+  emptyButtonText: {
+    ...typography.body,
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  gallery: {
+    paddingVertical: spacing.sm,
+  },
+  proofCard: {
+    width: 120,
+    height: 120,
+    marginRight: spacing.md,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: colors.darkSurface,
+    ...colors.shadows.sm,
+  },
+  proofImage: {
+    width: '100%',
+    height: '100%',
+  },
+  proofOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    padding: spacing.sm,
+  },
+  proofDate: {
+    ...typography.caption,
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  proofNote: {
+    ...typography.caption,
+    color: '#ffffff',
+    marginTop: 2,
+  },
+  hint: {
+    ...typography.caption,
+    color: colors.darkTextSecondary,
+    textAlign: 'center',
+    marginTop: spacing.md,
+  },  addButtonDisabled: {
     opacity: 0.5,
   },
   addButtonText: {
