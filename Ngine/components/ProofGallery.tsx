@@ -3,8 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { database } from '../services/supabase';
 import { colors, typography, spacing } from '../design-system';
+
+const IS_SUPABASE_CONFIGURED = !(process.env.EXPO_PUBLIC_SUPABASE_URL?.includes('your_supabase') || process.env.EXPO_PUBLIC_SUPABASE_KEY?.includes('your_supabase'));
+const MOCK_PROOFS_KEY = (resolutionId: string) => `mock_proofs_${resolutionId}`;
 
 interface GoalProof {
   id: string;
@@ -30,6 +34,14 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
 
   const loadProofs = async () => {
     try {
+      if (!IS_SUPABASE_CONFIGURED) {
+        // Load from AsyncStorage mock
+        const raw = await AsyncStorage.getItem(MOCK_PROOFS_KEY(resolutionId));
+        const items = raw ? JSON.parse(raw) : [];
+        setProofs(items);
+        return;
+      }
+
       const data = await database.getResolutionGoalProofs(resolutionId);
       setProofs(data);
     } catch (error) {
@@ -105,6 +117,26 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
   const uploadProof = async (asset: ImagePicker.ImagePickerAsset) => {
     setUploading(true);
     try {
+      if (!IS_SUPABASE_CONFIGURED) {
+        // Simulate upload by storing locally and using local URI
+        const mock = {
+          id: `mock_${Date.now()}`,
+          file_url: asset.uri,
+          file_type: 'image',
+          note: null,
+          created_at: new Date().toISOString(),
+        } as GoalProof;
+
+        const raw = await AsyncStorage.getItem(MOCK_PROOFS_KEY(resolutionId));
+        const items = raw ? JSON.parse(raw) : [];
+        items.unshift(mock);
+        await AsyncStorage.setItem(MOCK_PROOFS_KEY(resolutionId), JSON.stringify(items));
+        setProofs(items);
+
+        Alert.alert('Simulated upload', 'Proof added locally (Supabase not configured).');
+        return;
+      }
+
       // Convert asset to file format expected by Supabase
       const response = await fetch(asset.uri);
       const blob = await response.blob();
@@ -141,6 +173,15 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
           style: 'destructive',
           onPress: async () => {
             try {
+              if (!IS_SUPABASE_CONFIGURED) {
+                const raw = await AsyncStorage.getItem(MOCK_PROOFS_KEY(resolutionId));
+                const items = raw ? JSON.parse(raw) : [];
+                const remaining = items.filter((p: any) => p.id !== proofId);
+                await AsyncStorage.setItem(MOCK_PROOFS_KEY(resolutionId), JSON.stringify(remaining));
+                setProofs(remaining);
+                return;
+              }
+
               await database.deleteGoalProof(proofId);
               await loadProofs();
             } catch (error) {
