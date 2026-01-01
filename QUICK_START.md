@@ -13,9 +13,6 @@ Get NGINE running locally in 30 minutes.
 ## Step 1: Clone & Setup (5 min)
 
 ```bash
-# Navigate to mobile directory
-cd mobile
-
 # Install dependencies
 npm install
 

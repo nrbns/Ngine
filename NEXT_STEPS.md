@@ -45,7 +45,6 @@ EXPO_PUBLIC_ADMOB_REWARDED_ID=ca-app-pub-xxx  # Optional - for ads
 ### 3. Install & Run (5 minutes)
 
 ```bash
-cd mobile
 npm install
 npm start
 ```
@@ -166,7 +165,6 @@ Press `a` for Android or `i` for iOS.
 
 2. **Configure**
    ```bash
-   cd mobile
    eas build:configure
    ```
 

@@ -31,7 +31,7 @@ NGINE helps you build discipline by connecting your identity, aims, and daily ac
 ### **1. Clone & Setup**
 ```bash
 git clone https://github.com/nrbns/Ngine.git
-cd Ngine/mobile
+cd Ngine
 npm install
 ```
 
@@ -188,7 +188,6 @@ ai_insights, daily_reflections
 
 ### **Local Development:**
 ```bash
-cd mobile
 npm install
 # Set up .env
 npx expo start
