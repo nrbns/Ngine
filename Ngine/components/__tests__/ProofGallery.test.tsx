@@ -4,6 +4,7 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import { PermissionStatus } from 'expo-modules-core';
 import { Alert } from 'react-native';
 import { ProofGallery } from '../ProofGallery';
 
@@ -20,7 +21,12 @@ describe('ProofGallery (mock mode)', () => {
     const userId = 'user-1';
 
     // Mock ImagePicker to return an asset
-    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.MockedFunction<typeof ImagePicker.requestMediaLibraryPermissionsAsync>).mockResolvedValue({ status: 'granted' });
+    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.MockedFunction<typeof ImagePicker.requestMediaLibraryPermissionsAsync>).mockResolvedValue({
+      status: PermissionStatus.GRANTED,
+      granted: true,
+      expires: 'never',
+      canAskAgain: true,
+    });
     (ImagePicker.launchImageLibraryAsync as jest.MockedFunction<typeof ImagePicker.launchImageLibraryAsync>).mockResolvedValue({ canceled: false, assets: [{ uri: 'file://mock.jpg', width: 100, height: 100 }] });
 
     // Mock Alert to automatically choose the "Choose from Gallery" option

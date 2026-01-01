@@ -19,8 +19,8 @@ declare const process: {
 const IS_SUPABASE_CONFIGURED = !!(
   process?.env?.EXPO_PUBLIC_SUPABASE_URL &&
   process?.env?.EXPO_PUBLIC_SUPABASE_KEY &&
-  !process.env.EXPO_PUBLIC_SUPABASE_URL.includes('your_supabase') &&
-  !process.env.EXPO_PUBLIC_SUPABASE_KEY.includes('your_supabase')
+  !process?.env?.EXPO_PUBLIC_SUPABASE_URL?.includes('your_supabase') &&
+  !process?.env?.EXPO_PUBLIC_SUPABASE_KEY?.includes('your_supabase')
 );
 const MOCK_PROOFS_KEY = (resolutionId: string) => `mock_proofs_${resolutionId}`;
 
@@ -246,7 +246,10 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Progress Gallery</Text>
+        <View>
+          <Text style={styles.title}>Progress Gallery</Text>
+          <Text style={styles.cloudStatus}>{IS_SUPABASE_CONFIGURED ? 'Cloud: Connected' : 'Storage: Local (mock)'}</Text>
+        </View>
         <TouchableOpacity
           style={[styles.addButton, uploading && styles.addButtonDisabled]}
           onPress={pickImage}
@@ -367,6 +370,11 @@ const styles = StyleSheet.create({
     ...typography.h3,
     color: colors.darkTextPrimary,
   },
+  cloudStatus: {
+    ...typography.bodySmall,
+    color: colors.textTertiary,
+    marginTop: 4,
+  },
   addButton: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -383,7 +391,7 @@ const styles = StyleSheet.create({
   },
   loading: {
     textAlign: 'center',
-    color: colors.darkTextSecondary,
+    color: colors.textSecondary,
     ...typography.body,
   },
   emptyState: {
@@ -392,7 +400,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.h3,
-    color: colors.darkTextSecondary,
+    color: colors.textSecondary,
     marginBottom: spacing.sm,
   },
   emptySubtext: {
@@ -421,14 +429,17 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   proofCard: {
-    width: 140,
-    height: 100,
+    width: 120,
+    height: 120,
     marginRight: spacing.md,
-    marginBottom: spacing.md,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: colors.darkSurface,
-    ...colors.shadow,
+    backgroundColor: colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    elevation: 2,
   },
   proofImage: {
     width: '100%',
@@ -439,7 +450,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     padding: spacing.sm,
   },
   proofDate: {
@@ -454,7 +465,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     ...typography.caption,
-    color: colors.darkTextSecondary,
+    color: colors.textTertiary,
     textAlign: 'center',
     marginTop: spacing.md,
   },
@@ -530,88 +541,5 @@ const styles = StyleSheet.create({
   viewerCloseText: {
     color: '#ffffff',
     fontWeight: '700',
-  },
-  addButtonDisabled: {
-    opacity: 0.5,
-  },
-  addButtonText: {
-    ...typography.bodySmall,
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  loading: {
-    textAlign: 'center',
-    color: colors.textSecondary,
-    ...typography.body,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: spacing.xl,
-  },
-  emptyText: {
-    ...typography.h3,
-    color: colors.textSecondary,
-    marginBottom: spacing.sm,
-  },
-  emptySubtext: {
-    ...typography.bodySmall,
-    color: colors.textTertiary,
-    textAlign: 'center',
-    marginBottom: spacing.lg,
-  },
-  emptyButton: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.accent,
-    borderRadius: 8,
-  },
-  emptyButtonText: {
-    ...typography.body,
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  gallery: {
-    paddingVertical: spacing.sm,
-  },
-  proofCard: {
-    width: 120,
-    height: 120,
-    marginRight: spacing.md,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
-    elevation: 2,
-  },
-  proofImage: {
-    width: '100%',
-    height: '100%',
-  },
-  proofOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    padding: spacing.sm,
-  },
-  proofDate: {
-    ...typography.caption,
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  proofNote: {
-    ...typography.caption,
-    color: '#ffffff',
-    marginTop: 2,
-  },
-  hint: {
-    ...typography.caption,
-    color: colors.textTertiary,
-    textAlign: 'center',
-    marginTop: spacing.md,
   },
 });
