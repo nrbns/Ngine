@@ -1,6 +1,6 @@
 // Life Dashboard - REAL implementation with Supabase
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Alert, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase, database, subscribeToResolutions } from '../services/supabase';
 import { Platform } from 'react-native';
@@ -177,6 +177,12 @@ export default function LifeDashboard() {
     return 'Good evening';
   };
 
+  // Animated greeting
+  const [greetingOpacity] = React.useState(() => new Animated.Value(0));
+  React.useEffect(() => {
+    Animated.timing(greetingOpacity, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+  }, []);
+
   const getStatusEmoji = (status: string) => {
     const emojis: Record<string, string> = {
       aligned: '🟢',
@@ -213,9 +219,9 @@ export default function LifeDashboard() {
     >
       {/* A. Identity Header - Very Important */}
       <View style={styles.identityHeader}>
-        <Text style={styles.greeting}>
+        <Animated.Text style={[styles.greeting, { opacity: greetingOpacity }]}>
           {getGreeting()}, {user?.alias || user?.name || 'there'}
-        </Text>
+        </Animated.Text>
         {user?.core_identity && (
           <Text style={styles.identityStatement}>
             You are becoming: {user.core_identity}

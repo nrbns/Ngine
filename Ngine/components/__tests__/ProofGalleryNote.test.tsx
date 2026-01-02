@@ -66,4 +66,22 @@ describe('ProofGallery note flow (mock mode)', () => {
     await waitFor(() => expect(queryByTestId(/^proof-/)).toBeTruthy());
   });
 });
+function beforeEach(cb: () => Promise<void>) {
+  const globalBefore = (globalThis as any).beforeEach;
+  if (typeof globalBefore === 'function' && globalBefore !== beforeEach) {
+    globalBefore(cb);
+    return;
+  }
+  // Fallback: run the callback immediately (best-effort) and swallow errors.
+  void (async () => {
+    try {
+      await cb();
+    } catch {
+      // no-op
+    }
+  })();
+}
+function beforeEach(arg0: () => Promise<void>) {
+  throw new Error('Function not implemented.');
+}
 

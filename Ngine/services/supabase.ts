@@ -71,6 +71,24 @@ export const subscribeToUserProfile = (userId: string, callback: (payload: any) 
     .subscribe();
 };
 
+export const subscribeToGoalProofs = (resolutionId: string, callback: (payload: any) => void) => {
+  return supabase
+    .channel(`goal_proofs_${resolutionId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'goal_proofs',
+        filter: `resolution_id=eq.${resolutionId}`,
+      },
+      callback
+    )
+    .subscribe();
+};
+
+
+
 // Authentication helpers
 export const signInAnonymously = async () => {
   const { data, error } = await supabase.auth.signInAnonymously();

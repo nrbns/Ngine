@@ -1,10 +1,10 @@
 // Proof-of-Progress Gallery Component
 // Shows evidence that goals are actually happening
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Image, Alert, Modal, TextInput, Pressable, Platform, LayoutAnimation, UIManager, Animated, TouchableOpacity } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { database } from '../services/supabase';
+import { database, subscribeToGoalProofs, supabase } from '../services/supabase';
 import { colors, typography, spacing } from '../design-system';
 
 // Minimal ambient declaration so TypeScript knows about process.env in this environment.
@@ -22,6 +22,11 @@ const isSupabaseConfigured = () => !!(
   !process?.env?.EXPO_PUBLIC_SUPABASE_URL?.includes('your_supabase') &&
   !process?.env?.EXPO_PUBLIC_SUPABASE_KEY?.includes('your_supabase')
 );
+
+// Enable LayoutAnimation on Android for smooth list insert/removal animations
+if (Platform.OS === 'android' && UIManager && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 const MOCK_PROOFS_KEY = (resolutionId: string) => `mock_proofs_${resolutionId}`;
 
 interface GoalProof {
@@ -51,10 +56,20 @@ export function ProofGallery({ resolutionId, userId, db }: ProofGalleryProps) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
+  // Realtime indicators
+  const [live, setLive] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+
   // Note modal state
   const [noteModalVisible, setNoteModalVisible] = useState(false);
   const [pickedAsset, setPickedAsset] = useState<ImagePicker.ImagePickerAsset | undefined>(undefined);
   const [note, setNote] = useState('');
+
+  // Animated values for modals
+  const [modalOpacity] = useState(() => new Animated.Value(0));
+  React.useEffect(() => {
+    Animated.timing(modalOpacity, { toValue: noteModalVisible ? 1 : 0, duration: 200, useNativeDriver: true }).start();
+  }, [noteModalVisible]);
 
   // Viewer state
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -81,7 +96,47 @@ export function ProofGallery({ resolutionId, userId, db }: ProofGalleryProps) {
 
   React.useEffect(() => {
     loadProofs();
-  }, [loadProofs]);
+
+    // Realtime updates for goal proofs when running with Supabase
+    let subscription: any | null = null;
+    if (isSupabaseConfigured()) {
+      try {
+        subscription = subscribeToGoalProofs(resolutionId, (payload: any) => {
+          // payload.eventType will be 'INSERT'|'UPDATE'|'DELETE'
+          try { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); } catch (e) {}
+
+          // mark live and set timestamp
+          setLive(true);
+          setLastUpdate(new Date().toISOString());
+
+          if (payload.eventType === 'INSERT' && payload.new) {
+            setProofs((prev) => [payload.new, ...prev]);
+          } else if (payload.eventType === 'DELETE' && payload.old) {
+            setProofs((prev) => prev.filter((p) => p.id !== payload.old.id));
+            } else if (payload.eventType === 'UPDATE' && payload.new) {
+            setProofs((prev) => prev.map((p) => (p.id === payload.new.id ? payload.new : p)));
+          } else {
+            // fallback: reload proofs on other events
+            loadProofs();
+          }
+        });
+
+        // Subscription established
+        setLive(true);
+      } catch (e) {
+        console.warn('Realtime goal_proofs subscription failed', e);
+      }
+    } else {
+      setLive(false);
+    }
+
+    return () => {
+      if (subscription) {
+        try { supabase.removeChannel(subscription); } catch (e) {}
+      }
+      setLive(false);
+    };
+  }, [loadProofs, resolutionId]);
 
   const requestPermissions = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -171,6 +226,9 @@ export function ProofGallery({ resolutionId, userId, db }: ProofGalleryProps) {
         const items = raw ? JSON.parse(raw) : [];
         items.unshift(mock);
         await AsyncStorage.setItem(MOCK_PROOFS_KEY(resolutionId), JSON.stringify(items));
+
+        // Animate layout change for a smooth insertion
+        try { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); } catch (e) {}
         setProofs(items);
 
         Alert.alert('Simulated upload', 'Proof added locally (Supabase not configured).');
@@ -257,7 +315,11 @@ export function ProofGallery({ resolutionId, userId, db }: ProofGalleryProps) {
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Progress Gallery</Text>
-          <Text style={styles.cloudStatus}>{isSupabaseConfigured() ? 'Cloud: Connected' : 'Storage: Local (mock)'}</Text>
+          <Text style={styles.cloudStatus}>
+            {isSupabaseConfigured() ? 'Cloud: Connected' : 'Storage: Local (mock)'}
+            {live ? ' • Live' : ''}
+            {lastUpdate ? ` • Updated ${new Date(lastUpdate).toLocaleTimeString()}` : ''}
+          </Text>
         </View>
         <TouchableOpacity
           style={[styles.addButton, uploading && styles.addButtonDisabled]}
@@ -286,9 +348,12 @@ export function ProofGallery({ resolutionId, userId, db }: ProofGalleryProps) {
       ) : (
         <View style={styles.grid}>
           {proofs.map((proof) => (
-            <TouchableOpacity
+            <Pressable
               key={proof.id}
-              style={styles.proofCard}
+              style={({ pressed }) => [
+                styles.proofCard,
+                pressed && styles.proofCardPressed,
+              ]}
               onPress={() => {
                 setViewedProof(proof);
                 setViewerVisible(true);
@@ -309,7 +374,7 @@ export function ProofGallery({ resolutionId, userId, db }: ProofGalleryProps) {
                   </Text>
                 )}
               </View>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
       )}
@@ -319,9 +384,9 @@ export function ProofGallery({ resolutionId, userId, db }: ProofGalleryProps) {
       </Text>
 
       {/* Note Modal */}
-      <Modal visible={noteModalVisible} transparent animationType="slide">
+      <Modal visible={noteModalVisible} transparent animationType="none">
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
+          <Animated.View style={[styles.modalCard, { opacity: modalOpacity, transform: [{ scale: modalOpacity.interpolate({ inputRange: [0, 1], outputRange: [0.98, 1] }) }] }]}>
             <Text style={styles.modalTitle}>Add a note (optional)</Text>
             <TextInput
               testID="input-proof-note"
@@ -332,14 +397,14 @@ export function ProofGallery({ resolutionId, userId, db }: ProofGalleryProps) {
               onChangeText={setNote}
             />
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalButton} onPress={() => { setNoteModalVisible(false); setPickedAsset(undefined); }}>
+              <Pressable style={styles.modalButton} onPress={() => { setNoteModalVisible(false); setPickedAsset(undefined); }}>
                 <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity testID="btn-upload-proof" style={[styles.modalButton, styles.modalPrimary]} onPress={() => pickedAsset && uploadProof(pickedAsset, note)}>
+              </Pressable>
+              <Pressable testID="btn-upload-proof" style={[styles.modalButton, styles.modalPrimary]} onPress={() => pickedAsset && uploadProof(pickedAsset, note)}>
                 <Text style={[styles.modalButtonText, styles.modalPrimaryText]}>{uploading ? 'Uploading...' : 'Upload'}</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
 
@@ -489,6 +554,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.darkSurface,
     borderRadius: 12,
     padding: spacing.md,
+    // subtle elevation for modal
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 6,
   },
   modalTitle: {
     ...typography.h3,
@@ -528,6 +599,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  proofCardPressed: {
+    transform: [{ scale: 0.985 } as any],
+    opacity: 0.98,
   },
   viewerImage: {
     width: '90%',

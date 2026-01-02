@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { supabase, database } from '../services/supabase';
+import { supabase, database, subscribeToCheckins } from '../services/supabase';
 import { ProofGallery } from '../components/ProofGallery';
 import { getStatus, calculateSuccessProbability } from '../logic/statusEngine';
 import { colors, typography, spacing } from '../design-system';
@@ -38,10 +38,44 @@ export default function ResolutionDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
 
+  const [liveCheckins, setLiveCheckins] = useState(false);
+  const [lastCheckinUpdate, setLastCheckinUpdate] = useState<string | null>(null);
+
   useEffect(() => {
+    let subscription: any | null = null;
     if (id) {
       loadResolution();
+
+      // Subscribe to checkins for real-time updates
+      try {
+        subscription = subscribeToCheckins(id, (payload: any) => {
+          if (payload.eventType === 'INSERT' && payload.new) {
+            setCheckins((prev) => [payload.new, ...prev]);
+            setLastCheckinUpdate(new Date().toISOString());
+            setLiveCheckins(true);
+          } else if (payload.eventType === 'DELETE' && payload.old) {
+            setCheckins((prev) => prev.filter((c) => c.id !== payload.old.id));
+            setLastCheckinUpdate(new Date().toISOString());
+          } else if (payload.eventType === 'UPDATE' && payload.new) {
+            setCheckins((prev) => prev.map((c) => (c.id === payload.new.id ? payload.new : c)));
+            setLastCheckinUpdate(new Date().toISOString());
+          } else {
+            // fallback: refresh full list
+            loadResolution();
+          }
+        });
+
+        setLiveCheckins(true);
+      } catch (e) {
+        console.warn('Failed to subscribe to checkins', e);
+      }
     }
+
+    return () => {
+      if (subscription) {
+        try { supabase.removeChannel(subscription); } catch (e) {}
+      }
+    };
   }, [id]);
 
   const loadResolution = async () => {
@@ -157,6 +191,9 @@ export default function ResolutionDetailScreen() {
           <View style={styles.statusInfo}>
             <Text style={styles.statusText}>{resolution.status.toUpperCase()}</Text>
             <Text style={styles.mddText}>MDD: {resolution.mdd}</Text>
+            <Text style={{ ...typography.caption, color: colors.textTertiary, marginTop: 6 }}>
+              {liveCheckins ? `Live · Updated ${lastCheckinUpdate ? new Date(lastCheckinUpdate).toLocaleTimeString() : ''}` : 'Live updates: off'}
+            </Text>
           </View>
           <TouchableOpacity
             style={styles.checkinButton}

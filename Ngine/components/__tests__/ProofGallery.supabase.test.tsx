@@ -52,9 +52,21 @@ describe('ProofGallery (Supabase mode)', () => {
 
     const mockDb = {
       getResolutionGoalProofs: jest.fn().mockResolvedValue([] as any[]),
-      uploadGoalProof: jest.fn().mockResolvedValue({ id: 'cloud_1', file_url: 'https://cdn/supabase/cloud_1.jpg', created_at: new Date().toISOString() } as SupabaseUploadResult),
-      deleteGoalProof: jest.fn().mockResolvedValue(undefined),
-    } as unknown as SupabaseDb;
+      // typed so mockResolvedValue accepts SupabaseUploadResult
+      uploadGoalProof: jest.fn() as jest.MockedFunction<(resolutionId: string, userId: string, file: any, note?: string) => Promise<SupabaseUploadResult>>,
+      deleteGoalProof: jest.fn() as jest.MockedFunction<(resolutionId: string, proofId: string) => Promise<void>>,
+    };
+
+    // Provide a resolved value for the typed delete mock
+    (mockDb.deleteGoalProof as jest.MockedFunction<(resolutionId: string, proofId: string) => Promise<void>>).mockResolvedValue(undefined);
+
+    // Provide the resolved value for the typed mock upload function
+    const expectedUploadResult: SupabaseUploadResult = {
+      id: 'cloud_1',
+      file_url: 'https://cdn/supabase/cloud_1.jpg',
+      created_at: new Date().toISOString(),
+    };
+    (mockDb.uploadGoalProof as jest.MockedFunction<(resolutionId: string, userId: string, file: any, note?: string) => Promise<SupabaseUploadResult>>).mockResolvedValue(expectedUploadResult);
 
     // Mock ImagePicker
     const ImagePicker = require('expo-image-picker');
@@ -75,7 +87,8 @@ describe('ProofGallery (Supabase mode)', () => {
 
     type AlertButton = { text?: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' };
 
-    jest.spyOn(Alert, 'alert').mockImplementation((title: string, message?: string, buttons?: AlertButton[]) => {
+    jest.spyOn(Alert, 'alert').mockImplementation((...args: unknown[]) => {
+      const [, , buttons] = args as [string, string?, AlertButton[]?];
       const btn = buttons && buttons[1];
       if (btn && typeof btn.onPress === 'function') (btn as AlertButton).onPress();
     });
@@ -110,4 +123,39 @@ describe('ProofGallery (Supabase mode)', () => {
     delete process.env.EXPO_PUBLIC_SUPABASE_KEY;
   });
 });
+function afterAll(fn: () => void | Promise<void>): void {
+  const g = global as unknown as { afterAll?: (cb: () => void | Promise<void>) => void };
+  if (typeof g.afterAll === 'function') {
+    g.afterAll(fn);
+    return;
+  }
+
+  // Fallback for environments without Jest: run immediately and surface errors
+  try {
+    const result = fn();
+    if (result && typeof (result as Promise<void>).then === 'function') {
+      (result as Promise<void>).catch((err) => setTimeout(() => { throw err; }));
+    }
+  } catch (err) {
+    setTimeout(() => { throw err; });
+  }
+}
+function beforeEach(fn: () => void | Promise<void>): void {
+  const g = global as unknown as { beforeEach?: (cb: () => void | Promise<void>) => void };
+  if (typeof g.beforeEach === 'function') {
+    g.beforeEach(fn);
+    return;
+  }
+
+  // Fallback for environments without Jest: run immediately and surface errors
+  try {
+    const result = fn();
+    if (result && typeof (result as Promise<void>).then === 'function') {
+      (result as Promise<void>).catch((err) => setTimeout(() => { throw err; }));
+    }
+  } catch (err) {
+    setTimeout(() => { throw err; });
+  }
+}
+
 
