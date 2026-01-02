@@ -28,9 +28,7 @@
         "RECEIVE_BOOT_COMPLETED"
       ]
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
+
     "plugins": [
       [
         "expo-notifications",

@@ -2,6 +2,7 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { act } from 'react-test-renderer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { PermissionStatus } from 'expo-modules-core';
@@ -48,7 +49,7 @@ describe('ProofGallery (mock mode)', () => {
     // Wait for note modal and press Upload (no note)
     await waitFor(() => expect(getByTestId('input-proof-note')).toBeTruthy());
     const uploadBtn = getByTestId('btn-upload-proof');
-    fireEvent.press(uploadBtn);
+    await act(async () => { fireEvent.press(uploadBtn); });
 
     // wait for upload to finish and AsyncStorage to be updated
     await waitFor(async () => {

@@ -15,3 +15,32 @@ console.warn = (...args) => {
   if (typeof first === 'string' && (first.includes('Setting a timer') || first.includes('Missing Supabase environment variables'))) return;
   origWarn(...args);
 };
+
+// Ensure any pending Animated timers are flushed inside act() so React test updates are wrapped
+const { act } = require('react-test-renderer');
+if (typeof global.afterEach === 'function') {
+  global.afterEach(async () => {
+    // Allow microtask queue and pending timeouts to run inside act so updates are wrapped properly
+    try {
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+    } catch (e) {
+      // if act throws, fall back to a small delay
+      await new Promise((r) => setTimeout(r, 0));
+    }
+  });
+} else if (typeof afterEach === 'function') {
+  // fallback if the global namespace provides afterEach directly
+  afterEach(async () => {
+    try {
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+    } catch (e) {
+      await new Promise((r) => setTimeout(r, 0));
+    }
+  });
+} else {
+  // No test lifecycle hooks available in this environment; skip setup
+}

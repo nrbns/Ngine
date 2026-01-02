@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase, database, subscribeToResolutions } from '../services/supabase';
-import { DashboardAd } from '../services/ads';
+import { Platform } from 'react-native';
 import { getStatus, calculateSuccessProbability } from '../logic/statusEngine';
 import { calculateIntegrityScore, getIntegrityLabel, getIntegrityColor, ResolutionData } from '../logic/integrity';
 import { getDailyReflection } from '../services/reflection';
@@ -25,6 +25,29 @@ interface Aim {
   id: string;
   title: string;
   resolutions?: Resolution[];
+}
+
+// Native-only placeholder that dynamically loads the ad component to avoid web bundling of native module
+function NativeDashboardAdPlaceholder() {
+  const [Loaded, setLoaded] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (Platform.OS === 'web') return;
+      try {
+        const mod = await import('../services/ads');
+        if (mounted) setLoaded(() => mod.DashboardAd);
+      } catch (e) {
+        console.warn('Failed to load native ads module', e);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  if (!Loaded) return null;
+  const Comp = Loaded;
+  return <Comp />;
 }
 
 export default function LifeDashboard() {
@@ -300,7 +323,8 @@ export default function LifeDashboard() {
 
       {/* F. Single Native Ad - Only Here, Very Subtle */}
       <View style={styles.adContainer}>
-        <DashboardAd />
+        {/* Load native DashboardAd only on native platforms to avoid bundling native ad module on web */}
+        {Platform.OS !== 'web' ? <NativeDashboardAdPlaceholder /> : null}
       </View>
     </ScrollView>
   );
