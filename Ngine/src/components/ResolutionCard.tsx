@@ -1,6 +1,7 @@
 // Resolution Card Component
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { StatusBadge, Status } from '../../components/StatusBadge';
+import { StatusBadge } from '../../components/StatusBadge';
+import type { Status } from '../../components/StatusBadge';
 import { colors, spacing, borderRadius } from '../../design-system';
 
 // Local minimal resolution type to avoid cross-module type conflicts
@@ -22,7 +23,10 @@ interface ResolutionCardProps {
 
 export function ResolutionCard({ resolution, onPress }: ResolutionCardProps) {
   // normalize possible snake_case fields from backend to the typed Resolution shape
+  // The resolution object may come from different backends; tolerate alternative field names
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mddText = (resolution as any).mdd_text ?? (resolution as any).mddText ?? '—';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const durationDays = (resolution as any).duration_days ?? (resolution as any).durationDays ?? 0;
 
   return (

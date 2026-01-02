@@ -30,10 +30,12 @@ describe('ProofGallery (mock mode)', () => {
     (ImagePicker.launchImageLibraryAsync as jest.MockedFunction<typeof ImagePicker.launchImageLibraryAsync>).mockResolvedValue({ canceled: false, assets: [{ uri: 'file://mock.jpg', width: 100, height: 100 }] });
 
     // Mock Alert to automatically choose the "Choose from Gallery" option
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     jest.spyOn(Alert, 'alert').mockImplementation((title, message, buttons) => {
       const btn = buttons && buttons[1];
       if (btn && typeof (btn as any).onPress === 'function') (btn as any).onPress();
     });
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     const { getByText, getByTestId, queryAllByTestId } = render(<ProofGallery resolutionId={resolutionId} userId={userId} />);
 

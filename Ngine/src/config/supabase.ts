@@ -15,9 +15,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 })
 
 // Helper to call edge functions
-export const callEdgeFunction = async (functionName: string, body: any) => {
+export const callEdgeFunction = async (functionName: string, body: unknown) => {
   const { data: { session } } = await supabase.auth.getSession()
-  
+
   if (!session) {
     throw new Error('Not authenticated')
   }
@@ -31,13 +31,13 @@ export const callEdgeFunction = async (functionName: string, body: any) => {
         'Authorization': `Bearer ${session.access_token}`,
         'apikey': supabaseAnonKey,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(body as Record<string, unknown>),
     }
   )
 
   if (!response.ok) {
     const error = await response.json()
-    throw new Error(error.error || 'Request failed')
+    throw new Error(error?.error || 'Request failed')
   }
 
   return response.json()

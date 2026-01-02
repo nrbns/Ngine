@@ -48,9 +48,10 @@ export default function CreateResolutionScreen() {
       if (error) throw error;
 
       router.replace('/(tabs)/dashboard');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating resolution:', error);
-      alert(error.message || 'Failed to create resolution');
+      const msg = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : String(error);
+      alert(msg || 'Failed to create resolution');
     } finally {
       setLoading(false);
     }

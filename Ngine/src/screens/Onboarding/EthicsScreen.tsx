@@ -25,7 +25,7 @@ export default function EthicsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Data</Text>
           <Text style={styles.sectionText}>
-            Your data stays private. We don't sell it. You can delete everything anytime.
+            Your data stays private. We don&apos;t sell it. You can delete everything anytime.
           </Text>
         </View>
 
@@ -39,7 +39,7 @@ export default function EthicsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>AI Insights</Text>
           <Text style={styles.sectionText}>
-            AI helps explain why resolutions fail. It's honest, non-judgmental, and actionable.
+            AI helps explain why resolutions fail. It&apos;s honest, non-judgmental, and actionable.
           </Text>
         </View>
       </View>

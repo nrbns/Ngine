@@ -52,9 +52,10 @@ export default function CheckInScreen() {
 
               Alert.alert('Saved', 'Check-in saved successfully');
               router.back();
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.error('Error saving check-in:', error);
-              Alert.alert('Error', error.message || 'Failed to save check-in');
+              const msg = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : String(error);
+              Alert.alert('Error', msg || 'Failed to save check-in');
             } finally {
               setLoading(false);
             }

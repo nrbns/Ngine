@@ -21,7 +21,7 @@ export default function DashboardScreen() {
       const { data, error } = await callEdgeFunction('dashboard', {});
       if (error) throw error;
       setResolutions(data.resolutions || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading dashboard:', error);
     } finally {
       setLoading(false);

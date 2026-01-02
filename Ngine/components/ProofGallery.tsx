@@ -1,7 +1,7 @@
 // Proof-of-Progress Gallery Component
 // Shows evidence that goals are actually happening
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert, Modal, TextInput } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, Modal, TextInput } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { database } from '../services/supabase';
@@ -16,7 +16,7 @@ declare const process: {
   };
 };
 
-const IS_SUPABASE_CONFIGURED = !!(
+const isSupabaseConfigured = () => !!(
   process?.env?.EXPO_PUBLIC_SUPABASE_URL &&
   process?.env?.EXPO_PUBLIC_SUPABASE_KEY &&
   !process?.env?.EXPO_PUBLIC_SUPABASE_URL?.includes('your_supabase') &&
@@ -32,12 +32,21 @@ interface GoalProof {
   created_at: string;
 }
 
+interface MinimalDB {
+  getResolutionGoalProofs: (resolutionId: string, limit?: number) => Promise<GoalProof[]>;
+  uploadGoalProof: (resolutionId: string, userId: string, file: any, note?: string) => Promise<any>;
+  deleteGoalProof: (proofId: string) => Promise<void>;
+}
+
 interface ProofGalleryProps {
   resolutionId: string;
   userId: string;
+  db?: MinimalDB; // optional injectable database for tests or advanced usage
 }
 
-export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
+export function ProofGallery({ resolutionId, userId, db }: ProofGalleryProps) {
+  const dbClient = db ?? database;
+
   const [proofs, setProofs] = useState<GoalProof[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -51,13 +60,9 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewedProof, setViewedProof] = useState<GoalProof | null>(null);
 
-  useEffect(() => {
-    loadProofs();
-  }, [resolutionId]);
-
-  const loadProofs = async () => {
+  const loadProofs = React.useCallback(async () => {
     try {
-      if (!IS_SUPABASE_CONFIGURED) {
+      if (!isSupabaseConfigured()) {
         // Load from AsyncStorage mock
         const raw = await AsyncStorage.getItem(MOCK_PROOFS_KEY(resolutionId));
         const items = raw ? JSON.parse(raw) : [];
@@ -65,14 +70,18 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
         return;
       }
 
-      const data = await database.getResolutionGoalProofs(resolutionId);
+      const data = await dbClient.getResolutionGoalProofs(resolutionId);
       setProofs(data);
     } catch (error) {
       console.error('Error loading proofs:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [resolutionId]);
+
+  React.useEffect(() => {
+    loadProofs();
+  }, [loadProofs]);
 
   const requestPermissions = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -148,7 +157,7 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
   const uploadProof = async (asset: ImagePicker.ImagePickerAsset, note?: string) => {
     setUploading(true);
     try {
-      if (!IS_SUPABASE_CONFIGURED) {
+      if (!isSupabaseConfigured()) {
         // Simulate upload by storing locally and using local URI
         const mock = {
           id: `mock_${Date.now()}`,
@@ -178,11 +187,11 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
         type: 'image/jpeg',
       };
 
-      await database.uploadGoalProof(resolutionId, userId, file, note);
+      await dbClient.uploadGoalProof(resolutionId, userId, file, note);
       await loadProofs(); // Refresh the gallery
 
       Alert.alert('Success', 'Proof added to your progress gallery!');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Upload error:', error);
       Alert.alert('Error', 'Failed to upload proof. Please try again.');
     } finally {
@@ -206,16 +215,16 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
           style: 'destructive',
           onPress: async () => {
             try {
-              if (!IS_SUPABASE_CONFIGURED) {
+              if (!isSupabaseConfigured()) {
                 const raw = await AsyncStorage.getItem(MOCK_PROOFS_KEY(resolutionId));
-                const items = raw ? JSON.parse(raw) : [];
-                const remaining = items.filter((p: any) => p.id !== proofId);
+                const items: GoalProof[] = raw ? JSON.parse(raw) : [];
+                const remaining = items.filter((p: GoalProof) => p.id !== proofId);
                 await AsyncStorage.setItem(MOCK_PROOFS_KEY(resolutionId), JSON.stringify(remaining));
                 setProofs(remaining);
                 return;
               }
 
-              await database.deleteGoalProof(proofId);
+              await dbClient.deleteGoalProof(proofId);
               await loadProofs();
             } catch (error) {
               Alert.alert('Error', 'Failed to delete proof.');
@@ -248,7 +257,7 @@ export function ProofGallery({ resolutionId, userId }: ProofGalleryProps) {
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Progress Gallery</Text>
-          <Text style={styles.cloudStatus}>{IS_SUPABASE_CONFIGURED ? 'Cloud: Connected' : 'Storage: Local (mock)'}</Text>
+          <Text style={styles.cloudStatus}>{isSupabaseConfigured() ? 'Cloud: Connected' : 'Storage: Local (mock)'}</Text>
         </View>
         <TouchableOpacity
           style={[styles.addButton, uploading && styles.addButtonDisabled]}

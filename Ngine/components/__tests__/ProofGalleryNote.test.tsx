@@ -18,15 +18,25 @@ describe('ProofGallery note flow (mock mode)', () => {
     const userId = 'user-1';
 
     // Mock ImagePicker to return an asset
-    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'granted' });
-    (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({ canceled: false, assets: [{ uri: 'file://note.jpg' }] });
+    (ImagePicker.requestMediaLibraryPermissionsAsync as any).mockResolvedValue({ status: 'granted' });
+    (ImagePicker.launchImageLibraryAsync as any).mockResolvedValue({ canceled: false, assets: [{ uri: 'file://note.jpg' }] });
 
     // Mock Alert to automatically choose the "Choose from Gallery" option
-    jest.spyOn(Alert, 'alert').mockImplementation((title, message, buttons) => {
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    interface TestAlertButton {
+      text?: string;
+      onPress?: () => void;
+      style?: 'default' | 'cancel' | 'destructive';
+    }
+
+    jest.spyOn(Alert, 'alert').mockImplementation((title: string, message?: string, buttons?: TestAlertButton[]) => {
       // Call the second button (Choose from Gallery) if available
-      const btn = buttons && buttons[1];
-      if (btn && typeof (btn as any).onPress === 'function') (btn as any).onPress();
+      const btn: TestAlertButton | undefined = buttons && buttons[1];
+      if (btn && typeof btn.onPress === 'function') (btn as TestAlertButton).onPress();
     });
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     const { getByText, getByTestId, queryByTestId } = render(<ProofGallery resolutionId={resolutionId} userId={userId} />);
 
@@ -55,3 +65,4 @@ describe('ProofGallery note flow (mock mode)', () => {
     await waitFor(() => expect(queryByTestId(/^proof-/)).toBeTruthy());
   });
 });
+

@@ -1,9 +1,8 @@
 // Resolution Card Component
-import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { StatusBadge, Status } from './StatusBadge';
 import { Resolution } from '../types';
-import { colors, typography, spacing, borderRadius } from '../design-system';
+import { colors, spacing, borderRadius } from '../design-system';
 
 interface ResolutionCardProps {
   resolution: Resolution;

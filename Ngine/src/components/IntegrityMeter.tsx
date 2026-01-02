@@ -3,11 +3,11 @@ import { View, Text, StyleSheet } from 'react-native';
 import { typography, spacing } from '../../design-system';
 
 interface IntegrityMeterProps {
-  resolutions: any[];
+  resolutions: Array<{ success_probability?: number }>;
 }
 
 export default function IntegrityMeter({ resolutions }: IntegrityMeterProps) {
-  const valid = resolutions.filter(r => typeof r.success_probability === 'number');
+  const valid = resolutions.filter((r): r is { success_probability: number } => typeof r.success_probability === 'number');
   const average = valid.length === 0 ? 100 : Math.round(valid.reduce((s, r) => s + r.success_probability, 0) / valid.length);
 
   return (
