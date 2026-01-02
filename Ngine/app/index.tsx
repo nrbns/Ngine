@@ -4,32 +4,16 @@ import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, A
 import { useRouter } from 'expo-router';
 import { supabase, database, subscribeToResolutions } from '../services/supabase';
 import { Platform } from 'react-native';
-import { getStatus, calculateSuccessProbability } from '../logic/statusEngine';
+import { getStatus, calculateSuccessProbability, CheckIn as StatusCheckIn } from '../logic/statusEngine';
 import { calculateIntegrityScore, getIntegrityLabel, getIntegrityColor, ResolutionData } from '../logic/integrity';
 import { getDailyReflection } from '../services/reflection';
 import { colors, typography, spacing } from '../design-system';
+import { Resolution, Aim, Checkin, UserProfile } from '../types';
 
-interface Resolution {
-  id: string;
-  title: string;
-  status: string;
-  aim_id?: string;
-  start_date: string;
-  end_date: string;
-  mdd_value?: number;
-  duration: number;
-  checkins?: any[];
-}
-
-interface Aim {
-  id: string;
-  title: string;
-  resolutions?: Resolution[];
-}
 
 // Native-only placeholder that dynamically loads the ad component to avoid web bundling of native module
 function NativeDashboardAdPlaceholder() {
-  const [Loaded, setLoaded] = React.useState<any>(null);
+  const [Loaded, setLoaded] = React.useState<React.ComponentType | null>(null);
 
   React.useEffect(() => {
     let mounted = true;
@@ -37,7 +21,7 @@ function NativeDashboardAdPlaceholder() {
       if (Platform.OS === 'web') return;
       try {
         const mod = await import('../services/ads');
-        if (mounted) setLoaded(() => mod.DashboardAd);
+        if (mounted) setLoaded(() => (mod.DashboardAd as React.ComponentType));
       } catch (e) {
         console.warn('Failed to load native ads module', e);
       }
@@ -52,7 +36,7 @@ function NativeDashboardAdPlaceholder() {
 
 export default function LifeDashboard() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [aims, setAims] = useState<Aim[]>([]);
   const [resolutions, setResolutions] = useState<Resolution[]>([]);
   const [integrityScore, setIntegrityScore] = useState(0);
@@ -64,7 +48,7 @@ export default function LifeDashboard() {
     loadDashboard();
 
     // Set up real-time subscriptions
-    let subscription: any;
+    let subscription: ReturnType<typeof subscribeToResolutions> | null = null;
     if (user?.id) {
       subscription = subscribeToResolutions(user.id, (payload) => {
         console.log('Real-time resolution update:', payload);
@@ -77,9 +61,9 @@ export default function LifeDashboard() {
         supabase.removeChannel(subscription);
       }
     };
-  }, [user?.id]);
+  }, [user?.id, loadDashboard]);
 
-  const loadDashboard = async () => {
+  const loadDashboard = React.useCallback(async () => {
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) {
@@ -110,13 +94,24 @@ export default function LifeDashboard() {
 
       // Process resolutions with status calculation
       const processedResolutions = await Promise.all(
-        resolutionsData.map(async (resolution: any) => {
-          const checkins = await database.getResolutionCheckins(resolution.id);
-          const status = getStatus(checkins);
+        resolutionsData.map(async (resolutionRaw: unknown) => {
+          const resolution = resolutionRaw as Resolution & Record<string, unknown>;
+          const checkins = (await database.getResolutionCheckins(String(resolution.id))) as Checkin[];
+          // Convert checkins shape to what status engine expects
+          const statusCheckins = checkins.map(ci => {
+            const obj = ci as Record<string, unknown>;
+            return {
+              created_at: String(obj['date'] ?? obj['created_at'] ?? new Date().toISOString()),
+              done: String(obj['execution'] ?? obj['done'] ?? ''),
+              energy: Number(obj['energy'] ?? 0),
+            } as StatusCheckIn;
+          });
+
+          const status = getStatus(statusCheckins);
           const probability = calculateSuccessProbability(
-            checkins,
-            resolution.duration,
-            resolution.mdd_value || 5
+            statusCheckins,
+            Number(resolution.duration) || 0,
+            Number(resolution.mdd_value) || 5
           );
 
           return {
@@ -146,18 +141,18 @@ export default function LifeDashboard() {
       try {
         const reflectionText = await getDailyReflection(authUser.id);
         setReflection(reflectionText);
-      } catch (error) {
-        console.error('Error loading reflection:', error);
+      } catch (err: unknown) {
+        console.error('Error loading reflection:', err);
         setReflection('Welcome to NGINE. Start your first resolution to begin tracking your execution integrity.');
       }
-    } catch (error: any) {
-      console.error('Error loading dashboard:', error);
+    } catch (err: unknown) {
+      console.error('Error loading dashboard:', err);
       Alert.alert('Error', 'Failed to load dashboard. Please try again.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [router]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -181,7 +176,7 @@ export default function LifeDashboard() {
   const [greetingOpacity] = React.useState(() => new Animated.Value(0));
   React.useEffect(() => {
     Animated.timing(greetingOpacity, { toValue: 1, duration: 600, useNativeDriver: true }).start();
-  }, []);
+  }, [greetingOpacity]);
 
   const getStatusEmoji = (status: string) => {
     const emojis: Record<string, string> = {

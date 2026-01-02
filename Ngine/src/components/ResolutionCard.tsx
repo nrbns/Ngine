@@ -24,10 +24,9 @@ interface ResolutionCardProps {
 export function ResolutionCard({ resolution, onPress }: ResolutionCardProps) {
   // normalize possible snake_case fields from backend to the typed Resolution shape
   // The resolution object may come from different backends; tolerate alternative field names
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mddText = (resolution as any).mdd_text ?? (resolution as any).mddText ?? '—';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const durationDays = (resolution as any).duration_days ?? (resolution as any).durationDays ?? 0;
+  const res = resolution as unknown as Record<string, unknown>;
+  const mddText = String(res['mdd_text'] ?? res['mddText'] ?? res['mdd'] ?? '—');
+  const durationDays = Number(res['duration_days'] ?? res['durationDays'] ?? res['duration'] ?? 0);
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>

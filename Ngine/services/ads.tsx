@@ -18,6 +18,23 @@ const getAdModule = () => {
 const defaultBannerId = process.env.EXPO_PUBLIC_ADMOB_BANNER_ID || 'ca-app-pub-xxx';
 const defaultRewardedId = process.env.EXPO_PUBLIC_ADMOB_REWARDED_ID || 'ca-app-pub-xxx';
 
+type Rewarded = {
+  createForAdRequest: (id: string, options?: { requestNonPersonalizedAdsOnly?: boolean }) => {
+    addAdEventListener: (event: string, callback: (...args: unknown[]) => void) => () => void;
+    load: () => void;
+    show: () => void;
+  };
+};
+
+type AdModule = {
+  BannerAd?: React.ComponentType<Record<string, unknown>>;
+  BannerAdSize?: { BANNER: string };
+  TestIds?: { BANNER?: string; REWARDED?: string };
+  RewardedAd?: Rewarded;
+  AdEventType?: { LOADED: string; ERROR: string; CLOSED: string };
+  RewardedAdEventType?: { EARNED_REWARD: string };
+};
+
 // Dashboard Banner Ad Component
 export function DashboardAd(): ReactElement {
   if (Platform.OS === 'web') {
@@ -28,7 +45,7 @@ export function DashboardAd(): ReactElement {
   const ads = getAdModule();
   if (!ads) return <View style={styles.adContainer} />;
 
-  const { BannerAd, BannerAdSize, TestIds } = ads as any;
+  const { BannerAd, BannerAdSize, TestIds } = ads as AdModule;
 
   const BANNER_AD_UNIT_ID = __DEV__
     ? (TestIds?.BANNER ?? 'ca-app-pub-xxxx')
@@ -61,7 +78,7 @@ export async function showRewardedAd(): Promise<boolean> {
     return true;
   }
 
-  const { RewardedAd, AdEventType, RewardedAdEventType, TestIds } = ads as any;
+  const { RewardedAd, AdEventType, RewardedAdEventType, TestIds } = ads as AdModule;
   const adUnitId = __DEV__ ? (TestIds?.REWARDED ?? 'ca-app-pub-xxxx') : defaultRewardedId;
 
   try {
@@ -78,17 +95,17 @@ export async function showRewardedAd(): Promise<boolean> {
       let removeClosed: (() => void) | null = null;
 
       const cleanup = () => {
-        try { removeLoaded && removeLoaded(); } catch (e) {}
-        try { removeError && removeError(); } catch (e) {}
-        try { removeEarned && removeEarned(); } catch (e) {}
-        try { removeClosed && removeClosed(); } catch (e) {}
+        try { removeLoaded && removeLoaded(); } catch (err) { console.warn('removeLoaded cleanup failed', err); }
+        try { removeError && removeError(); } catch (err) { console.warn('removeError cleanup failed', err); }
+        try { removeEarned && removeEarned(); } catch (err) { console.warn('removeEarned cleanup failed', err); }
+        try { removeClosed && removeClosed(); } catch (err) { console.warn('removeClosed cleanup failed', err); }
       };
 
       removeLoaded = rewarded.addAdEventListener(AdEventType.LOADED, () => {
         rewarded.show();
       });
 
-      removeError = rewarded.addAdEventListener(AdEventType.ERROR, (error: any) => {
+      removeError = rewarded.addAdEventListener(AdEventType.ERROR, (error: unknown) => {
         console.warn('Rewarded ad error', error);
         cleanup();
         resolve(false);

@@ -39,7 +39,7 @@ interface GoalProof {
 
 interface MinimalDB {
   getResolutionGoalProofs: (resolutionId: string, limit?: number) => Promise<GoalProof[]>;
-  uploadGoalProof: (resolutionId: string, userId: string, file: any, note?: string) => Promise<any>;
+  uploadGoalProof: (resolutionId: string, userId: string, file: unknown, note?: string) => Promise<GoalProof | Record<string, unknown>>;
   deleteGoalProof: (proofId: string) => Promise<void>;
 }
 
@@ -69,14 +69,13 @@ export function ProofGallery({ resolutionId, userId, db }: ProofGalleryProps) {
   const [modalOpacity] = useState(() => new Animated.Value(0));
   React.useEffect(() => {
     Animated.timing(modalOpacity, { toValue: noteModalVisible ? 1 : 0, duration: 200, useNativeDriver: true }).start();
-  }, [noteModalVisible]);
+  }, [noteModalVisible, modalOpacity]);
 
   // Viewer state
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewedProof, setViewedProof] = useState<GoalProof | null>(null);
 
-  const loadProofs = React.useCallback(async () => {
-    try {
+  const loadProofs = React.useCallback(async () => {    try {
       if (!isSupabaseConfigured()) {
         // Load from AsyncStorage mock
         const raw = await AsyncStorage.getItem(MOCK_PROOFS_KEY(resolutionId));
@@ -92,29 +91,30 @@ export function ProofGallery({ resolutionId, userId, db }: ProofGalleryProps) {
     } finally {
       setLoading(false);
     }
-  }, [resolutionId]);
+  }, [resolutionId, dbClient]);
 
   React.useEffect(() => {
     loadProofs();
 
     // Realtime updates for goal proofs when running with Supabase
-    let subscription: any | null = null;
+    let subscription: ReturnType<typeof subscribeToGoalProofs> | null = null;
     if (isSupabaseConfigured()) {
       try {
-        subscription = subscribeToGoalProofs(resolutionId, (payload: any) => {
+        subscription = subscribeToGoalProofs(resolutionId, (payload: unknown) => {
           // payload.eventType will be 'INSERT'|'UPDATE'|'DELETE'
-          try { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); } catch (e) {}
+                try { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); } catch (err) { console.warn('Layout animation failed', err); }
 
           // mark live and set timestamp
           setLive(true);
           setLastUpdate(new Date().toISOString());
 
-          if (payload.eventType === 'INSERT' && payload.new) {
-            setProofs((prev) => [payload.new, ...prev]);
-          } else if (payload.eventType === 'DELETE' && payload.old) {
-            setProofs((prev) => prev.filter((p) => p.id !== payload.old.id));
-            } else if (payload.eventType === 'UPDATE' && payload.new) {
-            setProofs((prev) => prev.map((p) => (p.id === payload.new.id ? payload.new : p)));
+          const p = parsePayload(payload);
+          if (p.eventType === 'INSERT' && p.new) {
+            setProofs((prev) => [p.new!, ...prev]);
+          } else if (p.eventType === 'DELETE' && p.old) {
+            setProofs((prev) => prev.filter((q) => q.id !== p.old!.id));
+          } else if (p.eventType === 'UPDATE' && p.new) {
+            setProofs((prev) => prev.map((q) => (q.id === p.new!.id ? p.new! : q)));
           } else {
             // fallback: reload proofs on other events
             loadProofs();
@@ -132,11 +132,21 @@ export function ProofGallery({ resolutionId, userId, db }: ProofGalleryProps) {
 
     return () => {
       if (subscription) {
-        try { supabase.removeChannel(subscription); } catch (e) {}
+        try { supabase.removeChannel(subscription); } catch (err) { console.warn('Failed to remove subscription', err); }
       }
       setLive(false);
     };
   }, [loadProofs, resolutionId]);
+
+  // Safe payload accessor
+  function parsePayload(payload: unknown): { eventType?: string; new?: GoalProof; old?: GoalProof } {
+    const p = payload as Record<string, unknown>;
+    return {
+      eventType: String(p.eventType ?? p.event ?? ''),
+      new: (p.new ?? p['new']) as GoalProof | undefined,
+      old: (p.old ?? p['old']) as GoalProof | undefined,
+    };
+  }
 
   const requestPermissions = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -228,7 +238,7 @@ export function ProofGallery({ resolutionId, userId, db }: ProofGalleryProps) {
         await AsyncStorage.setItem(MOCK_PROOFS_KEY(resolutionId), JSON.stringify(items));
 
         // Animate layout change for a smooth insertion
-        try { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); } catch (e) {}
+        try { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); } catch (err) { console.warn('Layout animation failed', err); }
         setProofs(items);
 
         Alert.alert('Simulated upload', 'Proof added locally (Supabase not configured).');
@@ -601,7 +611,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   proofCardPressed: {
-    transform: [{ scale: 0.985 } as any],
+    transform: [{ scale: 0.985 }],
     opacity: 0.98,
   },
   viewerImage: {

@@ -2,7 +2,7 @@
 // One short truth per day (AI or rules-based)
 import { supabase } from './supabase';
 import { getAIInsight } from './ai';
-import { ResolutionData, calculateIntegrityScore } from '../logic/integrity';
+import { calculateIntegrityScore } from '../logic/integrity';
 
 export async function getDailyReflection(userId: string): Promise<string> {
   const today = new Date().toISOString().split('T')[0];

@@ -1,5 +1,5 @@
 // AI Integration - Controlled and safe
-export async function getAIInsight(data: any): Promise<string> {
+export async function getAIInsight(data: Record<string, unknown>): Promise<string> {
   const openaiKey = process.env.EXPO_PUBLIC_OPENAI_KEY;
   
   if (!openaiKey) {
@@ -31,9 +31,9 @@ export async function getAIInsight(data: any): Promise<string> {
     });
 
     const result = await res.json();
-    return result.choices[0]?.message?.content || 'Unable to generate insight.';
-  } catch (error: any) {
-    console.error('AI Error:', error);
+    return result.choices?.[0]?.message?.content || 'Unable to generate insight.';
+  } catch (err: unknown) {
+    console.error('AI Error:', err);
     return 'AI service temporarily unavailable.';
   }
 }

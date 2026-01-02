@@ -15,18 +15,15 @@ export default function CreateResolution() {
   const [title, setTitle] = useState('');
   const [why, setWhy] = useState('');
   const [duration, setDuration] = useState(30);
-  const [mdd, setMdd] = useState('5');
   const [mddValue, setMddValue] = useState(5);
   const [support, setSupport] = useState<'strict' | 'logical' | 'gentle'>('gentle');
   const [aimId, setAimId] = useState<string>('');
   const [aims, setAims] = useState<Aim[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadAims();
-  }, []);
-
-  const loadAims = async () => {
+  // Load aims once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const loadAims = React.useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -45,7 +42,11 @@ export default function CreateResolution() {
     } catch (error) {
       console.error('Error loading aims:', error);
     }
-  };
+  }, [aimId]);
+
+  useEffect(() => {
+    loadAims();
+  }, [loadAims]);
 
   const createResolution = async () => {
     if (!title.trim()) {
@@ -67,7 +68,7 @@ export default function CreateResolution() {
       const endDate = new Date();
       endDate.setDate(startDate.getDate() + duration);
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('resolutions')
         .insert({
           user_id: user.id,
@@ -88,9 +89,10 @@ export default function CreateResolution() {
       if (error) throw error;
 
       router.back();
-    } catch (error: any) {
-      console.error('Error creating resolution:', error);
-      alert(error.message || 'Failed to create resolution');
+    } catch (err: unknown) {
+      console.error('Error creating resolution:', err);
+      const error = err as Error;
+      alert(error?.message || 'Failed to create resolution');
     } finally {
       setLoading(false);
     }
@@ -194,7 +196,7 @@ export default function CreateResolution() {
               const val = parseInt(text) || 1;
               const clamped = Math.max(1, Math.min(7, val));
               setMddValue(clamped);
-              setMdd(clamped.toString());
+
             }}
             keyboardType="number-pad"
             placeholder="Days per week (1-7)"

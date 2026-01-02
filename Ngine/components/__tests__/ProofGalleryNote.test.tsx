@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { Alert } from 'react-native';
 import { ProofGallery } from '../ProofGallery';
+import { jest, it, beforeEach, describe, expect } from '@jest/globals';
 
 jest.mock('expo-image-picker');
 
@@ -21,8 +22,13 @@ describe('ProofGallery note flow (mock mode)', () => {
     const userId = 'user-1';
 
     // Mock ImagePicker to return an asset
-    (ImagePicker.requestMediaLibraryPermissionsAsync as unknown as jest.Mock).mockResolvedValue({ status: 'granted' });
-    (ImagePicker.launchImageLibraryAsync as unknown as jest.Mock).mockResolvedValue({ canceled: false, assets: [{ uri: 'file://note.jpg' }] });
+        (ImagePicker.requestMediaLibraryPermissionsAsync as jest.MockedFunction<typeof ImagePicker.requestMediaLibraryPermissionsAsync>).mockResolvedValue({
+          status: ImagePicker.PermissionStatus.GRANTED,
+          granted: true,
+          expires: 'never',
+          canAskAgain: true,
+        });
+        (ImagePicker.launchImageLibraryAsync as jest.MockedFunction<typeof ImagePicker.launchImageLibraryAsync>).mockResolvedValue({ canceled: false, assets: [{ uri: 'file://note.jpg', width: 100, height: 100 }] });
 
     // Mock Alert to automatically choose the "Choose from Gallery" option
     interface TestAlertButton {
@@ -34,7 +40,7 @@ describe('ProofGallery note flow (mock mode)', () => {
     jest.spyOn(Alert, 'alert').mockImplementation((title: string, message?: string, buttons?: TestAlertButton[]) => {
       // Call the second button (Choose from Gallery) if available
       const btn: TestAlertButton | undefined = buttons && buttons[1];
-      if (btn && typeof btn.onPress === 'function') (btn as TestAlertButton).onPress();
+      if (btn && typeof btn.onPress === 'function') btn.onPress?.();
     });
     /* eslint-enable @typescript-eslint/no-explicit-any */
     /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -66,22 +72,4 @@ describe('ProofGallery note flow (mock mode)', () => {
     await waitFor(() => expect(queryByTestId(/^proof-/)).toBeTruthy());
   });
 });
-function beforeEach(cb: () => Promise<void>) {
-  const globalBefore = (globalThis as any).beforeEach;
-  if (typeof globalBefore === 'function' && globalBefore !== beforeEach) {
-    globalBefore(cb);
-    return;
-  }
-  // Fallback: run the callback immediately (best-effort) and swallow errors.
-  void (async () => {
-    try {
-      await cb();
-    } catch {
-      // no-op
-    }
-  })();
-}
-function beforeEach(arg0: () => Promise<void>) {
-  throw new Error('Function not implemented.');
-}
 

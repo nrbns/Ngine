@@ -1,4 +1,4 @@
-import { AppData, Resolution } from './types';
+import { AppData } from './types';
 
 const STORAGE_KEY = 'ngine_data';
 

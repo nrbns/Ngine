@@ -4,7 +4,6 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase, database, subscribeToCheckins } from '../services/supabase';
 import { ProofGallery } from '../components/ProofGallery';
-import { getStatus, calculateSuccessProbability } from '../logic/statusEngine';
 import { colors, typography, spacing } from '../design-system';
 
 interface Resolution {
@@ -33,60 +32,25 @@ export default function ResolutionDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [resolution, setResolution] = useState<Resolution | null>(null);
-  const [aim, setAim] = useState<any>(null);
+  const [aim, setAim] = useState<{ title?: string } | null>(null);
   const [checkins, setCheckins] = useState<CheckIn[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<import('../types').UserProfile | null>(null);
 
   const [liveCheckins, setLiveCheckins] = useState(false);
   const [lastCheckinUpdate, setLastCheckinUpdate] = useState<string | null>(null);
 
-  useEffect(() => {
-    let subscription: any | null = null;
-    if (id) {
-      loadResolution();
-
-      // Subscribe to checkins for real-time updates
-      try {
-        subscription = subscribeToCheckins(id, (payload: any) => {
-          if (payload.eventType === 'INSERT' && payload.new) {
-            setCheckins((prev) => [payload.new, ...prev]);
-            setLastCheckinUpdate(new Date().toISOString());
-            setLiveCheckins(true);
-          } else if (payload.eventType === 'DELETE' && payload.old) {
-            setCheckins((prev) => prev.filter((c) => c.id !== payload.old.id));
-            setLastCheckinUpdate(new Date().toISOString());
-          } else if (payload.eventType === 'UPDATE' && payload.new) {
-            setCheckins((prev) => prev.map((c) => (c.id === payload.new.id ? payload.new : c)));
-            setLastCheckinUpdate(new Date().toISOString());
-          } else {
-            // fallback: refresh full list
-            loadResolution();
-          }
-        });
-
-        setLiveCheckins(true);
-      } catch (e) {
-        console.warn('Failed to subscribe to checkins', e);
-      }
-    }
-
-    return () => {
-      if (subscription) {
-        try { supabase.removeChannel(subscription); } catch (e) {}
-      }
-    };
-  }, [id]);
-
-  const loadResolution = async () => {
+  // Removed duplicate declaration of loadResolution
+  
+  const loadResolution = React.useCallback(async () => {
     if (!id) return;
-
+  
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) return;
-
+  
       setUser(authUser);
-
+  
       // Get resolution with aim
       const { data: resolutionData } = await supabase
         .from('resolutions')
@@ -96,22 +60,66 @@ export default function ResolutionDetailScreen() {
         `)
         .eq('id', id)
         .single();
-
+  
       if (resolutionData) {
         setResolution(resolutionData);
         setAim(resolutionData.aims);
       }
-
+  
       // Get check-ins
       const checkinsData = await database.getResolutionCheckins(id, 30);
       setCheckins(checkinsData);
-
-    } catch (error: any) {
-      console.error('Error loading resolution:', error);
+  
+    } catch (err: unknown) {
+      console.error('Error loading resolution:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+  
+  // Subscribe to checkins & reload on id change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    let subscription: ReturnType<typeof subscribeToCheckins> | null = null;
+    if (id) {
+      loadResolution();
+  
+      // Subscribe to checkins for real-time updates
+      try {
+        subscription = subscribeToCheckins(id, (payload: unknown) => {
+          const p = payload as Record<string, unknown>;
+          const eventType = String(p.eventType ?? p.event ?? '');
+          const newItem = (p.new ?? p['new']) as CheckIn | undefined;
+          const oldItem = (p.old ?? p['old']) as CheckIn | undefined;
+  
+          if (eventType === 'INSERT' && newItem) {
+            setCheckins((prev) => [newItem, ...prev]);
+            setLastCheckinUpdate(new Date().toISOString());
+            setLiveCheckins(true);
+          } else if (eventType === 'DELETE' && oldItem) {
+            setCheckins((prev) => prev.filter((c) => c.id !== oldItem.id));
+            setLastCheckinUpdate(new Date().toISOString());
+          } else if (eventType === 'UPDATE' && newItem) {
+            setCheckins((prev) => prev.map((c) => (c.id === newItem.id ? newItem : c)));
+            setLastCheckinUpdate(new Date().toISOString());
+          } else {
+            // fallback: refresh full list
+            loadResolution();
+          }
+        });
+  
+        setLiveCheckins(true);
+      } catch (err: unknown) {
+        console.warn('Failed to subscribe to checkins', err);
+      }
+    }
+  
+    return () => {
+      if (subscription) {
+        try { supabase.removeChannel(subscription); } catch (err: unknown) { console.warn('Failed to remove subscription', err); }
+      }
+    };
+  }, [id, loadResolution]);
 
   const getStatusEmoji = (status: string) => {
     const emojis: Record<string, string> = {

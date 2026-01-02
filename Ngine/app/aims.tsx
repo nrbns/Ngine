@@ -2,7 +2,7 @@
 // Long-term direction (3-5 aims)
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
+
 import { supabase } from '../services/supabase';
 import { PrimaryButton } from '../components/PrimaryButton';
 
@@ -13,7 +13,6 @@ interface Aim {
 }
 
 export default function AimsScreen() {
-  const router = useRouter();
   const [aims, setAims] = useState<Aim[]>([]);
   const [editingAim, setEditingAim] = useState<Aim | null>(null);
   const [title, setTitle] = useState('');
@@ -82,9 +81,10 @@ export default function AimsScreen() {
       setDescription('');
       setEditingAim(null);
       loadAims();
-    } catch (error: any) {
-      console.error('Error saving aim:', error);
-      alert(error.message || 'Failed to save aim');
+    } catch (err: unknown) {
+      console.error('Error saving aim:', err);
+      const error = err as Error;
+      alert(error?.message || 'Failed to save aim');
     } finally {
       setLoading(false);
     }
@@ -99,9 +99,10 @@ export default function AimsScreen() {
 
       if (error) throw error;
       loadAims();
-    } catch (error: any) {
-      console.error('Error deleting aim:', error);
-      alert(error.message || 'Failed to delete aim');
+    } catch (err: unknown) {
+      console.error('Error deleting aim:', err);
+      const error = err as Error;
+      alert(error?.message || 'Failed to delete aim');
     }
   };
 

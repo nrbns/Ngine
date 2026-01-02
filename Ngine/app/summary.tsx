@@ -10,18 +10,12 @@ import { getAIInsight } from '../services/ai';
 export default function SummaryScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [resolution, setResolution] = useState<any>(null);
-  const [checkins, setCheckins] = useState<any[]>([]);
+  const [resolution, setResolution] = useState<import('../types').Resolution | null>(null);
+  const [checkins, setCheckins] = useState<import('../types').Checkin[]>([]);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [loadingInsight, setLoadingInsight] = useState(false);
 
-  useEffect(() => {
-    if (id) {
-      loadData();
-    }
-  }, [id]);
-
-  const loadData = async () => {
+  const loadData = React.useCallback(async () => {
     const { data: resData } = await supabase
       .from('resolutions')
       .select('*')
@@ -37,7 +31,13 @@ export default function SummaryScreen() {
       .order('created_at', { ascending: true });
     
     if (checkinData) setCheckins(checkinData);
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      loadData();
+    }
+  }, [id, loadData]);
 
   const loadAIInsight = async () => {
     setLoadingInsight(true);
@@ -51,8 +51,8 @@ export default function SummaryScreen() {
         });
         setAiInsight(insight);
       }
-    } catch (error) {
-      console.error('Error loading AI insight:', error);
+    } catch (err: unknown) {
+      console.error('Error loading AI insight:', err);
     } finally {
       setLoadingInsight(false);
     }

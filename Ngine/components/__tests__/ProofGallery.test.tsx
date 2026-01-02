@@ -34,7 +34,8 @@ describe('ProofGallery (mock mode)', () => {
     /* eslint-disable @typescript-eslint/no-explicit-any */
     jest.spyOn(Alert, 'alert').mockImplementation((title, message, buttons) => {
       const btn = buttons && buttons[1];
-      if (btn && typeof (btn as any).onPress === 'function') (btn as any).onPress();
+      const b = btn as { onPress?: () => void };
+      if (b && typeof b.onPress === 'function') b.onPress();
     });
     /* eslint-enable @typescript-eslint/no-explicit-any */
 

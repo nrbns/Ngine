@@ -2,7 +2,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { act } from 'react-test-renderer';
-import { expect, jest } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 
 /* eslint-disable @typescript-eslint/no-var-requires */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -42,23 +42,23 @@ describe('ProofGallery (Supabase mode)', () => {
       id: string;
       file_url: string;
       created_at: string;
+      [key: string]: unknown; // Add index signature to conform to Record<string, unknown>
     }
 
-    interface SupabaseDb {
-      getResolutionGoalProofs(resolutionId: string): Promise<any[]>;
-      uploadGoalProof(resolutionId: string, userId: string, file: any, note?: string): Promise<SupabaseUploadResult>;
-      deleteGoalProof(resolutionId: string, proofId: string): Promise<void>;
-    }
+
 
     const mockDb = {
-      getResolutionGoalProofs: jest.fn().mockResolvedValue([] as any[]),
+      getResolutionGoalProofs: jest.fn() as jest.MockedFunction<(resolutionId: string) => Promise<any[]>>,
       // typed so mockResolvedValue accepts SupabaseUploadResult
       uploadGoalProof: jest.fn() as jest.MockedFunction<(resolutionId: string, userId: string, file: any, note?: string) => Promise<SupabaseUploadResult>>,
-      deleteGoalProof: jest.fn() as jest.MockedFunction<(resolutionId: string, proofId: string) => Promise<void>>,
+      deleteGoalProof: jest.fn() as jest.MockedFunction<(proofId: string) => Promise<void>>,
     };
 
+    // Provide a resolved value for getResolutionGoalProofs so tests can mount without extra setup
+    (mockDb.getResolutionGoalProofs as jest.MockedFunction<(resolutionId: string) => Promise<any[]>>).mockResolvedValue([]);
+
     // Provide a resolved value for the typed delete mock
-    (mockDb.deleteGoalProof as jest.MockedFunction<(resolutionId: string, proofId: string) => Promise<void>>).mockResolvedValue(undefined);
+    (mockDb.deleteGoalProof as jest.MockedFunction<(proofId: string) => Promise<void>>).mockResolvedValue(undefined);
 
     // Provide the resolved value for the typed mock upload function
     const expectedUploadResult: SupabaseUploadResult = {
@@ -76,21 +76,16 @@ describe('ProofGallery (Supabase mode)', () => {
     // Mock Alert to choose gallery
     const { Alert } = require('react-native');
 
-    interface ImagePickerModule {
-      requestMediaLibraryPermissionsAsync(): Promise<{ status: string }>;
-      launchImageLibraryAsync(): Promise<{ canceled: boolean; assets?: Array<{ uri: string }> }>;
-    }
 
-    // Cast existing mocks to typed interfaces for better type checking
-    const typedDb = mockDb as SupabaseDb;
-    const typedImagePicker = (ImagePicker as unknown) as ImagePickerModule;
+    // No explicit typed casts required here
 
     type AlertButton = { text?: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' };
 
     jest.spyOn(Alert, 'alert').mockImplementation((...args: unknown[]) => {
       const [, , buttons] = args as [string, string?, AlertButton[]?];
       const btn = buttons && buttons[1];
-      if (btn && typeof btn.onPress === 'function') (btn as AlertButton).onPress();
+      // Safely invoke onPress if present
+      btn?.onPress?.();
     });
 
 
