@@ -19,27 +19,20 @@ console.warn = (...args) => {
 // Ensure any pending Animated timers are flushed inside act() so React test updates are wrapped
 const { act } = require('react-test-renderer');
 if (typeof global.afterEach === 'function') {
-  global.afterEach(async () => {
-    // Allow microtask queue and pending timeouts to run inside act so updates are wrapped properly
+  // Use a synchronous act to avoid scheduling timers after the Jest environment is torn down
+  global.afterEach(() => {
     try {
-      await act(async () => {
-        await new Promise((r) => setTimeout(r, 0));
-      });
+      act(() => {});
     } catch (e) {
-      // if act throws, fall back to a small delay
-      await new Promise((r) => setTimeout(r, 0));
+      // no-op
     }
   });
 } else if (typeof afterEach === 'function') {
   // fallback if the global namespace provides afterEach directly
-  afterEach(async () => {
+  afterEach(() => {
     try {
-      await act(async () => {
-        await new Promise((r) => setTimeout(r, 0));
-      });
-    } catch (e) {
-      await new Promise((r) => setTimeout(r, 0));
-    }
+      act(() => {});
+    } catch (e) {}
   });
 } else {
   // No test lifecycle hooks available in this environment; skip setup
