@@ -2,24 +2,28 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_KEY!;
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_KEY || '';
 
 if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables. Check your .env file.');
+  console.warn('Missing Supabase environment variables. Tests or local dev may use AsyncStorage fallbacks.');
 }
 
-export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
-});
+export const supabase: SupabaseClient =
+  supabaseUrl && supabaseKey
+    ? (createClient(supabaseUrl, supabaseKey, {
+        auth: {
+          storage: AsyncStorage,
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: false,
+        },
+      }) as SupabaseClient)
+    : ({} as SupabaseClient);
+
 
 // Real-time subscription helpers
-export const subscribeToResolutions = (userId: string, callback: (payload: any) => void) => {
+export const subscribeToResolutions = (userId: string, callback: (payload: unknown) => void) => {
   return supabase
     .channel('resolutions')
     .on(
@@ -35,7 +39,7 @@ export const subscribeToResolutions = (userId: string, callback: (payload: any) 
     .subscribe();
 };
 
-export const subscribeToCheckins = (resolutionId: string, callback: (payload: any) => void) => {
+export const subscribeToCheckins = (resolutionId: string, callback: (payload: unknown) => void) => {
   return supabase
     .channel(`checkins_${resolutionId}`)
     .on(
@@ -51,7 +55,7 @@ export const subscribeToCheckins = (resolutionId: string, callback: (payload: an
     .subscribe();
 };
 
-export const subscribeToUserProfile = (userId: string, callback: (payload: any) => void) => {
+export const subscribeToUserProfile = (userId: string, callback: (payload: unknown) => void) => {
   return supabase
     .channel('profile')
     .on(
@@ -66,6 +70,24 @@ export const subscribeToUserProfile = (userId: string, callback: (payload: any) 
     )
     .subscribe();
 };
+
+export const subscribeToGoalProofs = (resolutionId: string, callback: (payload: unknown) => void) => {
+  return supabase
+    .channel(`goal_proofs_${resolutionId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'goal_proofs',
+        filter: `resolution_id=eq.${resolutionId}`,
+      },
+      callback
+    )
+    .subscribe();
+};
+
+
 
 // Authentication helpers
 export const signInAnonymously = async () => {
@@ -93,7 +115,7 @@ export const database = {
     return data;
   },
 
-  async updateUserProfile(userId: string, updates: any) {
+  async updateUserProfile(userId: string, updates: Record<string, unknown>) {
     const { data, error } = await supabase
       .from('users')
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -105,7 +127,7 @@ export const database = {
     return data;
   },
 
-  async createUserProfile(userId: string, profile: any) {
+  async createUserProfile(userId: string, profile: Record<string, unknown>) {
     const { data, error } = await supabase
       .from('users')
       .insert({
@@ -145,7 +167,7 @@ export const database = {
     return data;
   },
 
-  async updateAim(aimId: string, updates: any) {
+  async updateAim(aimId: string, updates: Record<string, unknown>) {
     const { data, error } = await supabase
       .from('aims')
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -184,10 +206,10 @@ export const database = {
     return data || [];
   },
 
-  async createResolution(userId: string, resolution: any) {
+  async createResolution(userId: string, resolution: Record<string, unknown>) {
     const startDate = new Date();
     const endDate = new Date();
-    endDate.setDate(startDate.getDate() + (resolution.duration || 30));
+    endDate.setDate(startDate.getDate() + (Number(resolution['duration'] ?? 30)));
 
     const { data, error } = await supabase
       .from('resolutions')
@@ -281,12 +303,12 @@ export const database = {
   },
 
   // GOAL PROOFS OPERATIONS (NEW - Proof-of-progress gallery)
-  async uploadGoalProof(resolutionId: string, userId: string, file: any, note?: string) {
+  async uploadGoalProof(resolutionId: string, userId: string, file: unknown, note?: string) {
     // Upload file to Supabase storage
-    const fileName = `proofs/${Date.now()}_${file.fileName || 'proof.jpg'}`;
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const fileName = `proofs/${Date.now()}_${((file as { fileName?: string }).fileName) || 'proof.jpg'}`;
+    const { error: uploadError } = await supabase.storage
       .from('goal-proofs')
-      .upload(fileName, file);
+      .upload(fileName, file as unknown as Blob);
 
     if (uploadError) throw uploadError;
 
@@ -302,7 +324,7 @@ export const database = {
         resolution_id: resolutionId,
         user_id: userId,
         file_url: urlData.publicUrl,
-        file_type: file.type?.includes('image') ? 'image' : 'document',
+        file_type: (file as { type?: string }).type?.includes('image') ? 'image' : 'document',
         note: note || null,
       })
       .select()

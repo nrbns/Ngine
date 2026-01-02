@@ -82,7 +82,7 @@ serve(async (req) => {
   }
 })
 
-function calculateSuccessProbability(resolution: any, checkins: any[]): number {
+function calculateSuccessProbability(resolution: { start_date: string; end_date: string; mdd_value: number }, checkins: Array<{ execution?: string; energy?: number }>): number {
   if (checkins.length === 0) return 100
 
   const totalDays = Math.ceil(
@@ -99,7 +99,7 @@ function calculateSuccessProbability(resolution: any, checkins: any[]): number {
 
   // Energy factor (average energy)
   const avgEnergy = checkins.length > 0
-    ? checkins.reduce((sum, ci) => sum + ci.energy, 0) / checkins.length / 5
+    ? checkins.reduce((sum, ci) => sum + (ci.energy ?? 0), 0) / checkins.length / 5
     : 1
 
   // Consistency factor (recent performance)
@@ -117,5 +117,5 @@ function calculateSuccessProbability(resolution: any, checkins: any[]): number {
   probability = Math.max(0, Math.min(100, probability))
 
   return Math.round(probability)
-}
+} 
 

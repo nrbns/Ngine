@@ -93,7 +93,6 @@ serve(async (req) => {
     }
 
     // Trigger AI if status is drifting or broken
-    let aiInsight = null
     if (newStatus === 'drifting' || newStatus === 'broken') {
       // AI will be called separately via /ai/insight endpoint
       // This just marks that AI should be generated
@@ -116,7 +115,7 @@ serve(async (req) => {
 })
 
 // Rules Engine (NO AI)
-function calculateStatus(resolution: any, checkins: any[]): string {
+function calculateStatus(resolution: { status?: string; recovery_end_date?: string }, checkins: Array<{ date: string; execution?: string; energy?: number }>): string {
   if (resolution.status === 'recovering') {
     // Check if recovery period ended
     if (resolution.recovery_end_date && new Date() > new Date(resolution.recovery_end_date)) {
@@ -146,7 +145,7 @@ function calculateStatus(resolution: any, checkins: any[]): string {
   // Drift Detection: Energy ≤ 2 for 2 days
   if (sorted.length >= 2) {
     const lastTwo = sorted.slice(-2)
-    const allLowEnergy = lastTwo.every(ci => ci.energy <= 2)
+    const allLowEnergy = lastTwo.every(ci => (ci.energy ?? 0) <= 2)
     if (allLowEnergy) {
       return 'drifting'
     }
@@ -167,5 +166,5 @@ function calculateStatus(resolution: any, checkins: any[]): string {
   }
 
   return resolution.status || 'aligned'
-}
+} 
 

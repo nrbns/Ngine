@@ -28,7 +28,7 @@ export default function OnboardingScreen() {
             <View style={styles.stepContent}>
               <Text style={styles.stepTitle}>Identity</Text>
               <Text style={styles.stepDescription}>
-                Define who you're becoming. This anchors everything.
+                Define who you are becoming. This anchors everything.
               </Text>
             </View>
           </View>
@@ -88,7 +88,7 @@ export default function OnboardingScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Your Data</Text>
             <Text style={styles.sectionText}>
-              Your data stays private. We don't sell it. You can delete everything anytime.
+              Your data stays private. We do not sell it. You can delete everything anytime.
             </Text>
           </View>
           <View style={styles.section}>
@@ -100,7 +100,7 @@ export default function OnboardingScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>AI Insights</Text>
             <Text style={styles.sectionText}>
-              AI helps explain why resolutions fail. It's honest, non-judgmental, and actionable.
+              AI helps explain why resolutions fail. It is honest, non-judgmental, and actionable.
             </Text>
           </View>
         </View>

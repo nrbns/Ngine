@@ -1,31 +1,28 @@
 // Daily Check-In - REAL implementation with Supabase
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { database, subscribeToCheckins } from '../services/supabase';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { BLOCKERS } from '../constants/blockers';
-import { getStatus } from '../logic/statusEngine';
+import { getStatus, CheckIn as StatusCheckIn } from '../logic/statusEngine';
 import { getAIInsight, shouldTriggerAI } from '../services/ai';
 import { colors, typography, spacing } from '../design-system';
+import { Resolution, Checkin } from '../types';
 
 export default function CheckInScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [resolution, setResolution] = useState<any>(null);
+  const [resolution, setResolution] = useState<Resolution | null>(null);
   const [done, setDone] = useState<'yes' | 'partial' | 'no' | null>(null);
   const [blocker, setBlocker] = useState<string>('');
   const [energy, setEnergy] = useState(3);
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (id) {
-      loadResolution();
-    }
-  }, [id]);
-
-  const loadResolution = async () => {
+  // Run once when the id param changes (intentionally stable)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const loadResolution = React.useCallback(async () => {
     if (!id) return;
 
     setLoading(true);
@@ -41,22 +38,29 @@ export default function CheckInScreen() {
       setResolution(resolutionData);
 
       // Set up real-time subscription for check-ins
-      const subscription = subscribeToCheckins(id, (payload) => {
-        console.log('New check-in:', payload.new);
+      const subscription = subscribeToCheckins(id, (payload: unknown) => {
+        const p = payload as Record<string, unknown>;
+        console.log('New check-in:', p['new']);
         // Could update UI here if needed
       });
 
       return () => {
         supabase.removeChannel(subscription);
       };
-    } catch (error: any) {
-      console.error('Error loading resolution:', error);
+    } catch (err: unknown) {
+      console.error('Error loading resolution:', err);
       Alert.alert('Error', 'Failed to load resolution');
       router.back();
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, router]);
+
+  useEffect(() => {
+    if (id) {
+      loadResolution();
+    }
+  }, [id, loadResolution]);
 
   const submitCheckin = async () => {
     if (!done || !id) return;
@@ -71,8 +75,16 @@ export default function CheckInScreen() {
       });
 
       // Get all check-ins to calculate new status
-      const checkins = await database.getResolutionCheckins(id, 30);
-      const newStatus = getStatus(checkins);
+      const checkins = (await database.getResolutionCheckins(id, 30)) as Checkin[];
+      const statusCheckins: StatusCheckIn[] = checkins.map(ci => {
+        const obj = ci as Record<string, unknown>;
+        return {
+          created_at: String(obj['date'] ?? obj['created_at'] ?? new Date().toISOString()),
+          done: String(obj['execution'] ?? obj['done'] ?? ''),
+          energy: Number(obj['energy'] ?? 0),
+        } as StatusCheckIn;
+      });
+      const newStatus = getStatus(statusCheckins);
 
       // Update resolution status
       const { error: updateError } = await supabase
@@ -91,8 +103,8 @@ export default function CheckInScreen() {
             recent_checkins: checkins.slice(0, 5),
           });
           console.log('AI Insight generated:', insight);
-        } catch (aiError) {
-          console.error('AI insight failed:', aiError);
+        } catch (aiErr: unknown) {
+          console.error('AI insight failed:', aiErr);
         }
       }
 
@@ -112,9 +124,10 @@ export default function CheckInScreen() {
           },
         ]
       );
-    } catch (error: any) {
-      console.error('Error saving check-in:', error);
-      Alert.alert('Error', error.message || 'Failed to save check-in');
+    } catch (err: unknown) {
+      console.error('Error saving check-in:', err);
+      const error = err as Error;
+      Alert.alert('Error', error?.message || 'Failed to save check-in');
     } finally {
       setIsSubmitting(false);
     }

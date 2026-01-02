@@ -48,9 +48,10 @@ export default function CreateResolutionScreen() {
       if (error) throw error;
 
       router.replace('/(tabs)/dashboard');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating resolution:', error);
-      alert(error.message || 'Failed to create resolution');
+      const msg = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : String(error);
+      alert(msg || 'Failed to create resolution');
     } finally {
       setLoading(false);
     }
@@ -64,11 +65,26 @@ export default function CreateResolutionScreen() {
         <View style={styles.formGroup}>
           <Text style={styles.label}>Title *</Text>
           <TextInput
+            testID="input-title"
             style={styles.input}
             value={title}
             onChangeText={setTitle}
             placeholder="e.g., Exercise daily"
             placeholderTextColor="#9ca3af"
+          />
+        </View> 
+        
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Why it matters</Text>
+          <TextInput
+            testID="input-why"
+            style={[styles.input, styles.textArea]}
+            value={why}
+            onChangeText={setWhy}
+            placeholder="Why is this important to you?"
+            placeholderTextColor="#9ca3af"
+            multiline
+            numberOfLines={3}
           />
         </View>
 
@@ -151,6 +167,7 @@ export default function CreateResolutionScreen() {
         </View>
 
         <TouchableOpacity
+          testID="btn-save-resolution"
           style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleSubmit}
           disabled={loading || !title.trim()}

@@ -1,19 +1,56 @@
 // Ads Integration - Safe and controlled
-import { BannerAd, BannerAdSize, TestIds, RewardedAd, AdEventType, RewardedAdEventType } from 'react-native-google-mobile-ads';
 import { View, StyleSheet, Platform } from 'react-native';
 import { ReactElement } from 'react';
 
-// Use test IDs for development
-const BANNER_AD_UNIT_ID = __DEV__ 
-  ? TestIds.BANNER 
-  : process.env.EXPO_PUBLIC_ADMOB_BANNER_ID || 'ca-app-pub-xxx';
+// Use test IDs for development — define lazily when needed to avoid loading native modules on web
+const getAdModule = () => {
+  try {
+    // require at runtime so bundlers for web don't eagerly evaluate native modules
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require('react-native-google-mobile-ads');
+  } catch (e) {
+    // If the native module is not available (e.g., on web), return a safe fallback
+    return null;
+  }
+};
 
-const REWARDED_AD_UNIT_ID = __DEV__
-  ? TestIds.REWARDED
-  : process.env.EXPO_PUBLIC_ADMOB_REWARDED_ID || 'ca-app-pub-xxx';
+// Note: Keep ad module loading inside functions to avoid evaluating native modules during web bundling
+const defaultBannerId = process.env.EXPO_PUBLIC_ADMOB_BANNER_ID || 'ca-app-pub-xxx';
+const defaultRewardedId = process.env.EXPO_PUBLIC_ADMOB_REWARDED_ID || 'ca-app-pub-xxx';
+
+type Rewarded = {
+  createForAdRequest: (id: string, options?: { requestNonPersonalizedAdsOnly?: boolean }) => {
+    addAdEventListener: (event: string, callback: (...args: unknown[]) => void) => () => void;
+    load: () => void;
+    show: () => void;
+  };
+};
+
+type AdModule = {
+  BannerAd?: React.ComponentType<Record<string, unknown>>;
+  BannerAdSize?: { BANNER: string };
+  TestIds?: { BANNER?: string; REWARDED?: string };
+  RewardedAd?: Rewarded;
+  AdEventType?: { LOADED: string; ERROR: string; CLOSED: string };
+  RewardedAdEventType?: { EARNED_REWARD: string };
+};
 
 // Dashboard Banner Ad Component
 export function DashboardAd(): ReactElement {
+  if (Platform.OS === 'web') {
+    // Web: render a lightweight placeholder so bundler doesn't import native component
+    return <View style={styles.adContainer} />;
+  }
+
+  const ads = getAdModule();
+  if (!ads) return <View style={styles.adContainer} />;
+
+  const { BannerAd, BannerAdSize, TestIds } = ads as AdModule;
+
+  const BANNER_AD_UNIT_ID = __DEV__
+    ? (TestIds?.BANNER ?? 'ca-app-pub-xxxx')
+    : defaultBannerId;
+
   return (
     <View style={styles.adContainer}>
       <BannerAd
@@ -35,7 +72,14 @@ export async function showRewardedAd(): Promise<boolean> {
     return true;
   }
 
-  const adUnitId = __DEV__ ? TestIds.REWARDED : REWARDED_AD_UNIT_ID;
+  const ads = getAdModule();
+  if (!ads) {
+    await new Promise((r) => setTimeout(r, 1200));
+    return true;
+  }
+
+  const { RewardedAd, AdEventType, RewardedAdEventType, TestIds } = ads as AdModule;
+  const adUnitId = __DEV__ ? (TestIds?.REWARDED ?? 'ca-app-pub-xxxx') : defaultRewardedId;
 
   try {
     const rewarded = RewardedAd.createForAdRequest(adUnitId, {
@@ -51,17 +95,17 @@ export async function showRewardedAd(): Promise<boolean> {
       let removeClosed: (() => void) | null = null;
 
       const cleanup = () => {
-        try { removeLoaded && removeLoaded(); } catch (e) {}
-        try { removeError && removeError(); } catch (e) {}
-        try { removeEarned && removeEarned(); } catch (e) {}
-        try { removeClosed && removeClosed(); } catch (e) {}
+        try { removeLoaded && removeLoaded(); } catch (err) { console.warn('removeLoaded cleanup failed', err); }
+        try { removeError && removeError(); } catch (err) { console.warn('removeError cleanup failed', err); }
+        try { removeEarned && removeEarned(); } catch (err) { console.warn('removeEarned cleanup failed', err); }
+        try { removeClosed && removeClosed(); } catch (err) { console.warn('removeClosed cleanup failed', err); }
       };
 
       removeLoaded = rewarded.addAdEventListener(AdEventType.LOADED, () => {
         rewarded.show();
       });
 
-      removeError = rewarded.addAdEventListener(AdEventType.ERROR, (error: any) => {
+      removeError = rewarded.addAdEventListener(AdEventType.ERROR, (error: unknown) => {
         console.warn('Rewarded ad error', error);
         cleanup();
         resolve(false);

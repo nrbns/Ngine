@@ -17,7 +17,7 @@ Notifications.setNotificationHandler({
 });
 
 export default function RootLayout() {
-  const [session, setSession] = useState<Session | null>(null);
+  const [, setSession] = useState<Session | null>(null);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {

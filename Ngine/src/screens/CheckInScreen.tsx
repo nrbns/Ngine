@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { callEdgeFunction } from '../config/supabase';
 import { CheckInStatus } from '../types';
@@ -31,23 +31,38 @@ export default function CheckInScreen() {
   const handleSubmit = async () => {
     if (!execution) return;
 
-    setLoading(true);
-    try {
-      await callEdgeFunction('checkin', {
-        resolution_id: id,
-        date: today,
-        execution,
-        blocker: blocker || null,
-        energy,
-      });
+    // Confirm submission
+    Alert.alert(
+      'Submit Check-in',
+      'Are you sure you want to submit this check-in?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Submit',
+          onPress: async () => {
+            setLoading(true);
+            try {
+              await callEdgeFunction('checkin', {
+                resolution_id: id,
+                date: today,
+                execution,
+                blocker: blocker || null,
+                energy,
+              });
 
-      router.back();
-    } catch (error: any) {
-      console.error('Error saving check-in:', error);
-      alert(error.message || 'Failed to save check-in');
-    } finally {
-      setLoading(false);
-    }
+              Alert.alert('Saved', 'Check-in saved successfully');
+              router.back();
+            } catch (error: unknown) {
+              console.error('Error saving check-in:', error);
+              const msg = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : String(error);
+              Alert.alert('Error', msg || 'Failed to save check-in');
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -60,6 +75,7 @@ export default function CheckInScreen() {
           <Text style={styles.question}>Did you complete your MDD today?</Text>
           <View style={styles.executionButtons}>
             <TouchableOpacity
+              testID="btn-exec-yes"
               style={[
                 styles.executionButton,
                 execution === 'yes' && styles.executionButtonActive,
@@ -74,6 +90,44 @@ export default function CheckInScreen() {
                 ]}
               >
                 Yes
+              </Text>
+            </TouchableOpacity> 
+
+            <TouchableOpacity
+              testID="btn-exec-partial"
+              style={[
+                styles.executionButton,
+                execution === 'partial' && styles.executionButtonActive,
+              ]}
+              onPress={() => setExecution('partial')}
+            >
+              <Text style={styles.executionEmoji}>⚠️</Text>
+              <Text
+                style={[
+                  styles.executionText,
+                  execution === 'partial' && styles.executionTextActive,
+                ]}
+              >
+                Partial
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              testID="btn-exec-no"
+              style={[
+                styles.executionButton,
+                execution === 'no' && styles.executionButtonActive,
+              ]}
+              onPress={() => setExecution('no')}
+            >
+              <Text style={styles.executionEmoji}>❌</Text>
+              <Text
+                style={[
+                  styles.executionText,
+                  execution === 'no' && styles.executionTextActive,
+                ]}
+              >
+                No
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -168,6 +222,7 @@ export default function CheckInScreen() {
         )}
 
         <TouchableOpacity
+          testID="submit-button"
           style={[styles.submitButton, (!execution || loading) && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           disabled={!execution || loading}
@@ -184,29 +239,32 @@ export default function CheckInScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#2c3e50',
   },
   content: {
     padding: 24,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
-    color: '#111827',
+    color: '#ffffff',
     marginBottom: 8,
+  },
+  section: {
+    backgroundColor: '#3c5266',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 24,
   },
   date: {
     fontSize: 16,
-    color: '#6b7280',
-    marginBottom: 32,
-  },
-  section: {
-    marginBottom: 32,
+    color: '#bfc9cf',
+    marginBottom: 12,
   },
   question: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: '#ecf0f1',
     marginBottom: 16,
   },
   executionButtons: {
@@ -217,9 +275,10 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     borderWidth: 2,
-    borderColor: '#e5e7eb',
+    borderColor: '#2b3f50',
     borderRadius: 12,
     alignItems: 'center',
+    backgroundColor: '#2b3f50',
   },
   executionButtonActive: {
     borderColor: '#3b82f6',
@@ -232,7 +291,7 @@ const styles = StyleSheet.create({
   executionText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6b7280',
+    color: '#bfc9cf',
   },
   executionTextActive: {
     color: '#ffffff',
@@ -246,7 +305,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderWidth: 2,
-    borderColor: '#e5e7eb',
+    borderColor: '#2b3f50',
     borderRadius: 8,
   },
   blockerButtonActive: {
@@ -255,7 +314,7 @@ const styles = StyleSheet.create({
   },
   blockerText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#bfc9cf',
   },
   blockerTextActive: {
     color: '#ffffff',
@@ -269,9 +328,10 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     borderWidth: 2,
-    borderColor: '#e5e7eb',
+    borderColor: '#2b3f50',
     borderRadius: 8,
     alignItems: 'center',
+    backgroundColor: 'transparent',
   },
   energyButtonActive: {
     borderColor: '#3b82f6',
@@ -280,7 +340,7 @@ const styles = StyleSheet.create({
   energyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#6b7280',
+    color: '#bfc9cf',
   },
   energyTextActive: {
     color: '#ffffff',

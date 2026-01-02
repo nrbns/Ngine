@@ -11,16 +11,11 @@ import { colors, typography, spacing } from '../design-system';
 export default function RecoveryScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [resolution, setResolution] = useState<any>(null);
+  const [resolution, setResolution] = useState<import('../types').Resolution | null>(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (id) {
-      loadResolution();
-    }
-  }, [id]);
-
-  const loadResolution = async () => {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const loadResolution = React.useCallback(async () => {
     const { data } = await supabase
       .from('resolutions')
       .select('*')
@@ -28,7 +23,13 @@ export default function RecoveryScreen() {
       .single();
     
     if (data) setResolution(data);
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      loadResolution();
+    }
+  }, [id, loadResolution]);
 
   const startRecovery = async () => {
     if (!id) return;
@@ -48,9 +49,10 @@ export default function RecoveryScreen() {
         .eq('id', id);
 
       router.back();
-    } catch (error: any) {
-      console.error('Error starting recovery:', error);
-      alert(error.message || 'Failed to start recovery');
+    } catch (err: unknown) {
+      console.error('Error starting recovery:', err);
+      const error = err as Error;
+      alert(error?.message || 'Failed to start recovery');
     } finally {
       setLoading(false);
     }
@@ -72,7 +74,7 @@ export default function RecoveryScreen() {
 
         <View style={styles.messageBox}>
           <Text style={styles.message}>
-            Your resolution "{resolution.title}" needs attention.
+            Your resolution {resolution.title} needs attention.
           </Text>
           <Text style={styles.message}>
             Recovery mode gives you a fresh start with a 3-day micro plan focusing only on your MDD.

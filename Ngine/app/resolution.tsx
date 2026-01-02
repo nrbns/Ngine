@@ -2,9 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { supabase, database } from '../services/supabase';
+import { supabase, database, subscribeToCheckins } from '../services/supabase';
 import { ProofGallery } from '../components/ProofGallery';
-import { getStatus, calculateSuccessProbability } from '../logic/statusEngine';
 import { colors, typography, spacing } from '../design-system';
 
 interface Resolution {
@@ -33,24 +32,25 @@ export default function ResolutionDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [resolution, setResolution] = useState<Resolution | null>(null);
-  const [aim, setAim] = useState<any>(null);
+  const [aim, setAim] = useState<{ title?: string } | null>(null);
   const [checkins, setCheckins] = useState<CheckIn[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<import('../types').UserProfile | null>(null);
 
-  useEffect(() => {
-    if (id) {
-      loadResolution();
-    }
-  }, [id]);
+  const [liveCheckins, setLiveCheckins] = useState(false);
+  const [lastCheckinUpdate, setLastCheckinUpdate] = useState<string | null>(null);
 
-  const loadResolution = async () => {
+  // Removed duplicate declaration of loadResolution
+  
+  const loadResolution = React.useCallback(async () => {
+    if (!id) return;
+  
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) return;
-
+  
       setUser(authUser);
-
+  
       // Get resolution with aim
       const { data: resolutionData } = await supabase
         .from('resolutions')
@@ -60,22 +60,66 @@ export default function ResolutionDetailScreen() {
         `)
         .eq('id', id)
         .single();
-
+  
       if (resolutionData) {
         setResolution(resolutionData);
         setAim(resolutionData.aims);
       }
-
+  
       // Get check-ins
       const checkinsData = await database.getResolutionCheckins(id, 30);
       setCheckins(checkinsData);
-
-    } catch (error: any) {
-      console.error('Error loading resolution:', error);
+  
+    } catch (err: unknown) {
+      console.error('Error loading resolution:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+  
+  // Subscribe to checkins & reload on id change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    let subscription: ReturnType<typeof subscribeToCheckins> | null = null;
+    if (id) {
+      loadResolution();
+  
+      // Subscribe to checkins for real-time updates
+      try {
+        subscription = subscribeToCheckins(id, (payload: unknown) => {
+          const p = payload as Record<string, unknown>;
+          const eventType = String(p.eventType ?? p.event ?? '');
+          const newItem = (p.new ?? p['new']) as CheckIn | undefined;
+          const oldItem = (p.old ?? p['old']) as CheckIn | undefined;
+  
+          if (eventType === 'INSERT' && newItem) {
+            setCheckins((prev) => [newItem, ...prev]);
+            setLastCheckinUpdate(new Date().toISOString());
+            setLiveCheckins(true);
+          } else if (eventType === 'DELETE' && oldItem) {
+            setCheckins((prev) => prev.filter((c) => c.id !== oldItem.id));
+            setLastCheckinUpdate(new Date().toISOString());
+          } else if (eventType === 'UPDATE' && newItem) {
+            setCheckins((prev) => prev.map((c) => (c.id === newItem.id ? newItem : c)));
+            setLastCheckinUpdate(new Date().toISOString());
+          } else {
+            // fallback: refresh full list
+            loadResolution();
+          }
+        });
+  
+        setLiveCheckins(true);
+      } catch (err: unknown) {
+        console.warn('Failed to subscribe to checkins', err);
+      }
+    }
+  
+    return () => {
+      if (subscription) {
+        try { supabase.removeChannel(subscription); } catch (err: unknown) { console.warn('Failed to remove subscription', err); }
+      }
+    };
+  }, [id, loadResolution]);
 
   const getStatusEmoji = (status: string) => {
     const emojis: Record<string, string> = {
@@ -155,6 +199,9 @@ export default function ResolutionDetailScreen() {
           <View style={styles.statusInfo}>
             <Text style={styles.statusText}>{resolution.status.toUpperCase()}</Text>
             <Text style={styles.mddText}>MDD: {resolution.mdd}</Text>
+            <Text style={{ ...typography.caption, color: colors.textTertiary, marginTop: 6 }}>
+              {liveCheckins ? `Live · Updated ${lastCheckinUpdate ? new Date(lastCheckinUpdate).toLocaleTimeString() : ''}` : 'Live updates: off'}
+            </Text>
           </View>
           <TouchableOpacity
             style={styles.checkinButton}
@@ -169,10 +216,12 @@ export default function ResolutionDetailScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Progress Gallery</Text>
         {user && (
-          <ProofGallery
-            resolutionId={resolution.id}
-            userId={user.id}
-          />
+          <View style={{ marginTop: 8 }}>
+            <ProofGallery
+              resolutionId={resolution.id}
+              userId={user.id}
+            />
+          </View>
         )}
       </View>
 
@@ -223,6 +272,15 @@ export default function ResolutionDetailScreen() {
   );
 }
 
+const shadow = {
+  // cross-platform shadow for cards
+  elevation: 2,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.12,
+  shadowRadius: 4,
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -242,12 +300,15 @@ const styles = StyleSheet.create({
   },
   section: {
     padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    // Use card style
+    backgroundColor: colors.darkSurface,
+    marginHorizontal: 16,
+    marginBottom: spacing.md,
+    borderRadius: 12,
   },
   title: {
     ...typography.h1,
-    color: colors.textPrimary,
+    color: colors.darkTextPrimary,
     marginBottom: spacing.sm,
   },
   aimBadge: {
@@ -279,7 +340,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     padding: spacing.lg,
     borderRadius: 12,
-    ...colors.shadow,
+    ...shadow,
   },
   statusEmoji: {
     fontSize: 32,
@@ -345,7 +406,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     padding: spacing.md,
     borderRadius: 8,
-    ...colors.shadow,
+    ...shadow,
   },
   timelineHeader: {
     flexDirection: 'row',

@@ -25,6 +25,11 @@ export interface Resolution {
   mdd_text: string;
   mdd_value: number;
   support_style: SupportStyle;
+
+  // Backwards-compatible aliases (some modules use older field names)
+  duration?: number;
+  mdd?: string;
+  support?: SupportStyle;
   status: ResolutionStatus;
   start_date: string;
   end_date: string;

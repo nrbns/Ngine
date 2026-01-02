@@ -105,9 +105,10 @@ export default function ProfileScreen() {
       }
 
       router.back();
-    } catch (error: any) {
-      console.error('Error saving profile:', error);
-      alert(error.message || 'Failed to save profile');
+    } catch (err: unknown) {
+      console.error('Error saving profile:', err);
+      const error = err as Error;
+      alert(error?.message || 'Failed to save profile');
     } finally {
       setLoading(false);
     }

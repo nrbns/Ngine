@@ -150,15 +150,23 @@ Keep response under 280 characters.`
   return styles[supportStyle as keyof typeof styles] || base
 }
 
-function buildUserPrompt(resolution: any, checkins: any[], type: string): string {
-  const checkinSummary = checkins.map(ci => 
-    `${ci.date}: ${ci.execution} (energy: ${ci.energy}/5)${ci.blocker ? ` - ${ci.blocker}` : ''}`
-  ).join('\n')
+function buildUserPrompt(resolution: Record<string, unknown>, checkins: Array<Record<string, unknown>>, type: string): string {
+  const checkinSummary = checkins.map(ci => {
+    const date = String(ci['date'] ?? 'unknown')
+    const execution = String(ci['execution'] ?? '')
+    const energy = String(ci['energy'] ?? '')
+    const blocker = ci['blocker'] ? ` - ${String(ci['blocker'])}` : ''
+    return `${date}: ${execution} (energy: ${energy}/5)${blocker}`
+  }).join('\n')
 
-  return `Resolution: "${resolution.title}"
-Why it matters: ${resolution.why || 'Not specified'}
+  const title = String(resolution['title'] ?? '')
+  const why = String(resolution['why'] ?? 'Not specified')
+  const status = String(resolution['status'] ?? '')
 
-Status: ${resolution.status}
+  return `Resolution: "${title}"
+Why it matters: ${why}
+
+Status: ${status}
 Last 5 check-ins:
 ${checkinSummary}
 
