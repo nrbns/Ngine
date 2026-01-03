@@ -6,6 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { database, subscribeToGoalProofs, supabase } from '../services/supabase';
 import { colors, typography, spacing } from '../design-system';
+import Shimmer from './Shimmer';
 
 // Minimal ambient declaration so TypeScript knows about process.env in this environment.
 // This avoids needing @types/node while keeping the checks safe for Expo / React Native.
@@ -313,9 +314,14 @@ export function ProofGallery({ resolutionId, userId, db }: ProofGalleryProps) {
   };
 
   if (loading) {
+    // Show shimmer placeholders while loading
     return (
       <View style={styles.container}>
-        <Text style={styles.loading}>Loading gallery...</Text>
+        <View style={styles.grid}>
+          {[0,1,2,3,4,5].map((i) => (
+            <Shimmer key={i} testID={`shimmer-${i}`} width={120} height={120} style={{ marginRight: spacing.md, marginBottom: spacing.md, borderRadius: 12 }} />
+          ))}
+        </View>
       </View>
     );
   }

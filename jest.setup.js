@@ -16,6 +16,14 @@ console.warn = (...args) => {
   origWarn(...args);
 };
 
+// Prevent requestAnimationFrame from scheduling real timers during tests (avoids callbacks surviving teardown)
+if (typeof global.requestAnimationFrame !== 'function') {
+  global.requestAnimationFrame = () => {};
+} else {
+  // overwrite to noop to avoid scheduling timeouts inside React Native's polyfill
+  global.requestAnimationFrame = () => {};
+}
+
 // Ensure any pending Animated timers are flushed inside act() so React test updates are wrapped
 const { act } = require('react-test-renderer');
 if (typeof global.afterEach === 'function') {

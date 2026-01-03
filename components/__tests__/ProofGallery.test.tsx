@@ -2,6 +2,7 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import type { RenderAPI } from '@testing-library/react-native';
 import { act } from 'react-test-renderer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
@@ -39,7 +40,12 @@ describe('ProofGallery (mock mode)', () => {
     });
     /* eslint-enable @typescript-eslint/no-explicit-any */
 
-    const { getByText, getByTestId, queryAllByTestId } = render(<ProofGallery resolutionId={resolutionId} userId={userId} />);
+    let rendered: RenderAPI | null = null;
+    await act(async () => {
+      rendered = render(<ProofGallery resolutionId={resolutionId} userId={userId} />);
+    });
+
+    const getByText = rendered!.getByText; const getByTestId = rendered!.getByTestId; const queryAllByTestId = rendered!.queryAllByTestId;
 
     await waitFor(() => expect(getByText('No proofs yet')).toBeTruthy());
 
@@ -63,5 +69,26 @@ describe('ProofGallery (mock mode)', () => {
     // the proof card should be rendered
     const proofs = queryAllByTestId(/^proof-/);
     expect(proofs.length).toBe(1);
+  });
+
+  it('shows shimmer placeholders while loading', async () => {
+    const slowDb = {
+      // Return a pending promise so the component remains in the loading state
+      // without scheduling real timers that can survive test teardown.
+      getResolutionGoalProofs: jest.fn(() => new Promise(() => {})),
+      uploadGoalProof: jest.fn(),
+      deleteGoalProof: jest.fn(),
+    };
+
+    let rendered: RenderAPI | null = null;
+    await act(async () => {
+      rendered = render(<ProofGallery resolutionId="slow-res" userId="u" db={slowDb} />);
+    });
+
+    const getByTestId = rendered!.getByTestId;
+
+    // Immediately the component should show shimmer placeholders while the db promise is pending
+    expect(getByTestId('shimmer-0')).toBeTruthy();
+    expect(getByTestId('shimmer-1')).toBeTruthy();
   });
 });
