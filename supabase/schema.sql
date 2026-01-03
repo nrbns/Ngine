@@ -195,6 +195,28 @@ CREATE POLICY "Users can update own goal proofs" ON goal_proofs
 CREATE POLICY "Users can delete own goal proofs" ON goal_proofs
   FOR DELETE USING (auth.uid() = user_id);
 
+-- Daily flags to track per-user daily state (check-ins, ad shown state)
+CREATE TABLE IF NOT EXISTS user_daily_flags (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  checkin_done BOOLEAN NOT NULL DEFAULT FALSE,
+  ad_shown BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_daily_flags_user_date ON user_daily_flags(user_id, date);
+
+-- Simple RLS policy: allow authenticated users to insert or update their own flags
+ALTER TABLE user_daily_flags ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can upsert their daily flags" ON user_daily_flags
+FOR ALL
+USING (auth.uid()::text = user_id::text)
+WITH CHECK (auth.uid()::text = user_id::text);
+
+-- Note: Consider using service-side functions for comprehensive business rules
+
 -- AI insights policies
 CREATE POLICY "Users can view own insights" ON ai_insights
   FOR SELECT USING (auth.uid() = user_id);

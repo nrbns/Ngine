@@ -358,6 +358,33 @@ export const database = {
     return data;
   },
 
+  // Daily flags for monetization control
+  async hasShownAdToday(userId: string) {
+    const today = new Date().toISOString().split('T')[0];
+    const { data, error } = await supabase
+      .from('user_daily_flags')
+      .select('ad_shown')
+      .eq('user_id', userId)
+      .eq('date', today)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return !!(data && data.ad_shown);
+  },
+
+  async markAdShownToday(userId: string) {
+    const today = new Date().toISOString().split('T')[0];
+    const { data, error } = await supabase
+      .from('user_daily_flags')
+      .upsert({ user_id: userId, date: today, ad_shown: true }, { onConflict: 'user_id,date' })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+
   async getResolutionGoalProofs(resolutionId: string, limit = 50) {
     const { data, error } = await supabase
       .from('goal_proofs')

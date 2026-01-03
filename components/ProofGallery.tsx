@@ -5,6 +5,7 @@ import { View, Text, StyleSheet, Image, Alert, Modal, TextInput, Pressable, Plat
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { database, subscribeToGoalProofs, supabase } from '../services/supabase';
+import { showRewardedAd } from '../services/ads';
 import { colors, typography, spacing } from '../design-system';
 import Shimmer from './Shimmer';
 
@@ -339,7 +340,42 @@ export function ProofGallery({ resolutionId, userId, db }: ProofGalleryProps) {
         </View>
         <TouchableOpacity
           style={[styles.addButton, uploading && styles.addButtonDisabled]}
-          onPress={pickImage}
+          onPress={async () => {
+            // Reward gating: if Supabase is configured and user is set, require watching an ad for first upload/day
+            if (isSupabaseConfigured() && userId) {
+              try {
+                // Use injected DB client when present (tests override db prop)
+                const shown = await (dbClient as any).hasShownAdToday(userId);
+                if (!shown) {
+                  const watch = await new Promise<boolean>((resolve) => {
+                    Alert.alert('Unlock upload', 'Watch a short ad to unlock proof upload for today.', [
+                      { text: 'Watch Ad', onPress: () => resolve(true) },
+                      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+                    ]);
+                  });
+
+                  if (!watch) return;
+
+                  // Show rewarded ad
+                  const success = await showRewardedAd();
+                  if (!success) {
+                    Alert.alert('Ad failed', 'Could not complete the rewarded ad. Try again later.');
+                    return;
+                  }
+
+                  // Mark ad as shown today so uploads are allowed
+                  await (dbClient as any).markAdShownToday(userId);
+                }
+              } catch (err) {
+                console.error('Ad gating error', err);
+                Alert.alert('Error', 'Could not verify ad state. Try again later.');
+                return;
+              }
+            }
+
+            // proceed to pick image
+            await pickImage();
+          }}
           disabled={uploading}
         >
           <Text style={styles.addButtonText}>
