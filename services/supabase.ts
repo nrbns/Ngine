@@ -350,6 +350,27 @@ export const database = {
 
   // GOAL PROOFS OPERATIONS (NEW - Proof-of-progress gallery)
   async uploadGoalProof(resolutionId: string, userId: string, file: unknown, note?: string) {
+    // Server-side enforcement exists (RLS) but also check upfront for better UX: require ad_shown today
+    try {
+      const shown = await supabase
+        .from('user_daily_flags')
+        .select('ad_shown')
+        .eq('user_id', userId)
+        .eq('date', new Date().toISOString().split('T')[0])
+        .single();
+
+      if (!shown || !shown.data || shown.data.ad_shown !== true) {
+        const msg = 'Proof upload locked: watch a rewarded ad to unlock uploads for today.';
+        console.error(msg);
+        throw new Error(msg);
+      }
+    } catch (err) {
+      // If the check failed due to permissions or other errors, surface a helpful message
+      // but allow the flow to continue (server RLS will protect insertion). We still prefer to block here.
+      console.warn('Could not confirm ad_shown state:', err);
+      throw err;
+    }
+
     // Upload file to Supabase storage
     const fileName = `proofs/${Date.now()}_${((file as { fileName?: string }).fileName) || 'proof.jpg'}`;
     const { error: uploadError } = await supabase.storage

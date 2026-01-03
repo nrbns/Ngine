@@ -186,8 +186,18 @@ CREATE POLICY "Users can update own checkins" ON checkins
 CREATE POLICY "Users can view own goal proofs" ON goal_proofs
   FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can create own goal proofs" ON goal_proofs
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- Enforce that a user may only create a goal proof if they have watched a rewarded ad today
+-- (or server-side rules allow it). This prevents bypassing ad gating from the client.
+CREATE POLICY "Users can create own goal proofs when ad shown today" ON goal_proofs
+  FOR INSERT WITH CHECK (
+    auth.uid() = user_id
+    AND EXISTS (
+      SELECT 1 FROM user_daily_flags
+      WHERE user_daily_flags.user_id = auth.uid()
+        AND user_daily_flags.date = current_date
+        AND user_daily_flags.ad_shown = true
+    )
+  );
 
 CREATE POLICY "Users can update own goal proofs" ON goal_proofs
   FOR UPDATE USING (auth.uid() = user_id);

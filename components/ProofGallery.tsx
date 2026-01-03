@@ -221,7 +221,7 @@ export function ProofGallery({ resolutionId, userId, db }: ProofGalleryProps) {
     }
   };
 
-  const uploadProof = async (asset: ImagePicker.ImagePickerAsset, note?: string) => {
+  const uploadProof = async (asset: ImagePicker.ImagePickerAsset, note?: string, retryOnLock = true) => {
     setUploading(true);
     try {
       if (!isSupabaseConfigured()) {
@@ -263,6 +263,42 @@ export function ProofGallery({ resolutionId, userId, db }: ProofGalleryProps) {
       Alert.alert('Success', 'Proof added to your progress gallery!');
     } catch (error: unknown) {
       console.error('Upload error:', error);
+
+      // If the backend indicates that proof upload is locked (ad gating), prompt user to watch rewarded ad and retry
+      const msg = (error instanceof Error && error.message) ? error.message : String(error);
+      if (retryOnLock && msg.includes('Proof upload locked')) {
+        try {
+          const watch = await new Promise<boolean>((resolve) => {
+            Alert.alert('Unlock upload', 'Watch a short rewarded ad to unlock uploads for today.', [
+              { text: 'Watch Ad', onPress: () => resolve(true) },
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            ]);
+          });
+
+          if (!watch) return;
+
+          const adSuccess = await showRewardedAd();
+          if (!adSuccess) {
+            Alert.alert('Ad failed', 'Could not complete the rewarded ad. Try again later.');
+            return;
+          }
+
+          // Mark ad shown in backend, then retry upload once
+          try {
+            await database.markAdShownToday(userId);
+          } catch (markErr) {
+            console.warn('Failed to mark ad shown:', markErr);
+          }
+
+          await uploadProof(asset, note, false);
+          return;
+        } catch (e) {
+          console.error('Ad retry flow failed:', e);
+          Alert.alert('Error', 'Failed to complete upload flow. Please try again later.');
+          return;
+        }
+      }
+
       Alert.alert('Error', 'Failed to upload proof. Please try again.');
     } finally {
       setUploading(false);
