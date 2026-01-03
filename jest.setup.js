@@ -10,10 +10,18 @@ try {
 // Optional: silence certain console warnings in tests
 const { console } = global;
 const origWarn = console.warn;
+const origError = console.error;
 console.warn = (...args) => {
   const first = args[0] || '';
   if (typeof first === 'string' && (first.includes('Setting a timer') || first.includes('Missing Supabase environment variables'))) return;
   origWarn(...args);
+};
+
+// Silence React act(...) warnings in test output that are noisy but not failing the suite.
+console.error = (...args) => {
+  const first = args[0] || '';
+  if (typeof first === 'string' && first.includes('not wrapped in act(')) return;
+  origError(...args);
 };
 
 // Prevent requestAnimationFrame from scheduling real timers during tests (avoids callbacks surviving teardown)

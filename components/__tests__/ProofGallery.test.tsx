@@ -40,12 +40,9 @@ describe('ProofGallery (mock mode)', () => {
     });
     /* eslint-enable @typescript-eslint/no-explicit-any */
 
-    let rendered: RenderAPI | null = null;
-    await act(async () => {
-      rendered = render(<ProofGallery resolutionId={resolutionId} userId={userId} />);
-    });
+    const rendered = render(<ProofGallery resolutionId={resolutionId} userId={userId} />);
 
-    const getByText = rendered!.getByText; const getByTestId = rendered!.getByTestId; const queryAllByTestId = rendered!.queryAllByTestId;
+    const getByText = rendered.getByText; const getByTestId = rendered.getByTestId; const queryAllByTestId = rendered.queryAllByTestId;
 
     await waitFor(() => expect(getByText('No proofs yet')).toBeTruthy());
 
@@ -80,12 +77,9 @@ describe('ProofGallery (mock mode)', () => {
       deleteGoalProof: jest.fn(),
     };
 
-    let rendered: RenderAPI | null = null;
-    await act(async () => {
-      rendered = render(<ProofGallery resolutionId="slow-res" userId="u" db={slowDb} />);
-    });
+    const rendered = render(<ProofGallery resolutionId="slow-res" userId="u" db={slowDb} />);
 
-    const getByTestId = rendered!.getByTestId;
+    const getByTestId = rendered.getByTestId;
 
     // Immediately the component should show shimmer placeholders while the db promise is pending
     expect(getByTestId('shimmer-0')).toBeTruthy();
