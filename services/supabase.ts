@@ -280,6 +280,28 @@ export const database = {
       .single();
 
     if (error) throw error;
+
+    // After creating/upserting the checkin, mark the user's daily flag so backend knows a check-in was done
+    try {
+      // Lookup the resolution to find the user_id
+      const { data: resolutionData, error: resErr } = await supabase
+        .from('resolutions')
+        .select('user_id')
+        .eq('id', resolutionId)
+        .single();
+
+      if (!resErr && resolutionData && resolutionData.user_id) {
+        const userId = String(resolutionData.user_id);
+        await supabase
+          .from('user_daily_flags')
+          .upsert({ user_id: userId, date: today, checkin_done: true }, { onConflict: 'user_id,date' })
+          .select()
+          .single();
+      }
+    } catch (flagErr) {
+      console.warn('Failed to mark daily checkin flag:', flagErr);
+    }
+
     return data;
   },
 
