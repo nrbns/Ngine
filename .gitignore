@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 
+# Expo local files (should not be committed)
+.expo/
+
