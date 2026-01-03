@@ -51,6 +51,11 @@ export function DashboardAd(): ReactElement {
     ? (TestIds?.BANNER ?? 'ca-app-pub-xxxx')
     : defaultBannerId;
 
+  // Ensure native ad components are present before rendering
+  if (!BannerAd || !BannerAdSize) {
+    return <View style={styles.adContainer} />;
+  }
+
   return (
     <View style={styles.adContainer}>
       <BannerAd
@@ -80,6 +85,12 @@ export async function showRewardedAd(): Promise<boolean> {
 
   const { RewardedAd, AdEventType, RewardedAdEventType, TestIds } = ads as AdModule;
   const adUnitId = __DEV__ ? (TestIds?.REWARDED ?? 'ca-app-pub-xxxx') : defaultRewardedId;
+
+  // If the native RewardedAd or associated enums are missing, fallback to simulated ad behavior
+  if (!RewardedAd || !AdEventType || !RewardedAdEventType) {
+    await new Promise((r) => setTimeout(r, 1200));
+    return true;
+  }
 
   try {
     const rewarded = RewardedAd.createForAdRequest(adUnitId, {
