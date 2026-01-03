@@ -9,6 +9,12 @@ if (!supabaseUrl || !supabaseKey) {
   console.warn('Missing Supabase environment variables. Tests or local dev may use AsyncStorage fallbacks.');
 }
 
+export const isSupabaseConfigured = () => !!(
+  supabaseUrl && supabaseKey &&
+  !supabaseUrl.includes('your_supabase') &&
+  !supabaseKey.includes('your_supabase')
+);
+
 export const supabase: SupabaseClient =
   supabaseUrl && supabaseKey
     ? (createClient(supabaseUrl, supabaseKey, {
@@ -91,9 +97,27 @@ export const subscribeToGoalProofs = (resolutionId: string, callback: (payload: 
 
 // Authentication helpers
 export const signInAnonymously = async () => {
-  const { data, error } = await supabase.auth.signInAnonymously();
-  if (error) throw error;
-  return data;
+  if (!isSupabaseConfigured()) {
+    const msg = 'Supabase is not configured. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_KEY in your .env or environment.';
+    console.error(msg);
+    throw new Error(msg);
+  }
+
+  if (!supabase?.auth || typeof supabase.auth.signInAnonymously !== 'function') {
+    throw new Error('Supabase auth is unavailable in this environment.');
+  }
+
+  try {
+    const { data, error } = await supabase.auth.signInAnonymously();
+    if (error) {
+      console.error('Anonymous sign-in failed:', error);
+      throw error;
+    }
+    return data;
+  } catch (err) {
+    console.error('signInAnonymously error:', err);
+    throw err;
+  }
 };
 
 export const signOut = async () => {

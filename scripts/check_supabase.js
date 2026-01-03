@@ -2,6 +2,8 @@
 // Quick Supabase connection checker
 // Usage: node scripts/check_supabase.js
 
+// Load .env when running locally for convenience
+try { require('dotenv').config(); } catch (e) {}
 const { createClient } = require('@supabase/supabase-js');
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
