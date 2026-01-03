@@ -34,6 +34,10 @@ describe('ProofGallery upload retry flow', () => {
     process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
     process.env.EXPO_PUBLIC_SUPABASE_KEY = 'anon-test-key';
 
+    // Reset telemetry buffer
+    const telemetry = require('../../services/telemetry');
+    if (typeof telemetry.resetEvents === 'function') telemetry.resetEvents();
+
     // Mock global fetch to return an object with blob method
     (global as any).fetch = jest.fn(() => Promise.resolve({ blob: () => Promise.resolve({}) }));
 
@@ -74,5 +78,14 @@ describe('ProofGallery upload retry flow', () => {
     // Expect upload tried, ad shown and marked, and upload retried
     await waitFor(() => expect(db.uploadGoalProof).toHaveBeenCalledTimes(2));
     expect(db.markAdShownToday).toHaveBeenCalledWith('u1');
+
+    // Verify telemetry events: ad_watched -> upload_unlocked -> upload_success
+    const events = telemetry.getEvents();
+    const names = events.map((e: any) => e.name);
+    expect(names).toContain('ad_watched');
+    expect(names).toContain('upload_unlocked');
+    expect(names).toContain('upload_success');
+    expect(names.indexOf('ad_watched')).toBeLessThan(names.indexOf('upload_unlocked'));
+    expect(names.indexOf('upload_unlocked')).toBeLessThan(names.indexOf('upload_success'));
   });
 });

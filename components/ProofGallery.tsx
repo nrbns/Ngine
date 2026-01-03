@@ -260,6 +260,9 @@ export function ProofGallery({ resolutionId, userId, db }: ProofGalleryProps) {
       await dbClient.uploadGoalProof(resolutionId, userId, file, note);
       await loadProofs(); // Refresh the gallery
 
+      // telemetry
+      try { const { trackEvent } = require('../services/telemetry'); trackEvent('upload_success', { resolutionId, userId }); } catch (e) {}
+
       Alert.alert('Success', 'Proof added to your progress gallery!');
     } catch (error: unknown) {
       console.error('Upload error:', error);
@@ -283,9 +286,14 @@ export function ProofGallery({ resolutionId, userId, db }: ProofGalleryProps) {
             return;
           }
 
+          // telemetry: ad watched
+          try { const { trackEvent } = require('../services/telemetry'); trackEvent('ad_watched', { resolutionId, userId }); } catch (e) {}
+
           // Mark ad shown in backend, then retry upload once
           try {
             await database.markAdShownToday(userId);
+            // telemetry: upload unlocked
+            try { const { trackEvent } = require('../services/telemetry'); trackEvent('upload_unlocked', { resolutionId, userId }); } catch (e) {}
           } catch (markErr) {
             console.warn('Failed to mark ad shown:', markErr);
           }
