@@ -1,17 +1,11 @@
-const { getDefaultConfig } = require('@expo/metro-config');
-const path = require('path');
-const exclusionList = require('metro-config/src/defaults/exclusionList');
+// Learn more https://docs.expo.dev/guides/customizing-metro
+const { getDefaultConfig } = require('expo/metro-config');
 
-module.exports = (() => {
-  const config = getDefaultConfig(__dirname);
-  config.resolver = config.resolver || {};
-  config.resolver.extraNodeModules = {
-    ...(config.resolver.extraNodeModules || {}),
-    'react-native-google-mobile-ads': path.resolve(__dirname, 'shims', 'react-native-google-mobile-ads.js'),
-  };
+/** @type {import('expo/metro-config').MetroConfig} */
+const config = getDefaultConfig(__dirname);
 
-  // Block the native package from being resolved / bundled (helps prevent native component errors on web)
-  config.resolver.blockList = exclusionList([/.*\/node_modules\/react-native-google-mobile-ads\/.*$/]);
+// Prioritize .web extensions for web platform (must be BEFORE regular extensions)
+config.resolver.sourceExts = ['web.tsx', 'web.ts', ...config.resolver.sourceExts];
 
-  return config;
-})();
+module.exports = config;
+

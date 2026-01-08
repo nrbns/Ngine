@@ -1,170 +1,100 @@
-// Recovery Mode - Safe Space
-// Softer colors, short text, no metrics, no pressure
-// This is why users won't uninstall
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { supabase } from '../services/supabase';
-import { PrimaryButton } from '../components/PrimaryButton';
-import { colors, typography, spacing } from '../design-system';
+import React from 'react'
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+} from 'react-native'
+import { useRouter } from 'expo-router'
 
 export default function RecoveryScreen() {
-  const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const [resolution, setResolution] = useState<import('../types').Resolution | null>(null);
-  const [loading, setLoading] = useState(false);
+  const router = useRouter()
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const loadResolution = React.useCallback(async () => {
-    const { data } = await supabase
-      .from('resolutions')
-      .select('*')
-      .eq('id', id)
-      .single();
-    
-    if (data) setResolution(data);
-  }, [id]);
-
-  useEffect(() => {
-    if (id) {
-      loadResolution();
-    }
-  }, [id, loadResolution]);
-
-  const startRecovery = async () => {
-    if (!id) return;
-
-    setLoading(true);
-    try {
-      const recoveryEndDate = new Date();
-      recoveryEndDate.setDate(recoveryEndDate.getDate() + 3);
-
-      await supabase
-        .from('resolutions')
-        .update({
-          status: 'recovering',
-          recovery_start_date: new Date().toISOString().split('T')[0],
-          recovery_end_date: recoveryEndDate.toISOString().split('T')[0],
-        })
-        .eq('id', id);
-
-      router.back();
-    } catch (err: unknown) {
-      console.error('Error starting recovery:', err);
-      const error = err as Error;
-      alert(error?.message || 'Failed to start recovery');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!resolution) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.loading}>Loading...</Text>
-      </View>
-    );
+  const handleReset = () => {
+    // Reset logic would go here
+    router.replace('/(tabs)')
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>Recovery Mode</Text>
-        <Text style={styles.subtitle}>Reset without guilt</Text>
 
-        <View style={styles.messageBox}>
+        <View style={styles.messageCard}>
           <Text style={styles.message}>
-            Your resolution {resolution.title} needs attention.
+            You didn't fail. Reset tomorrow.
           </Text>
-          <Text style={styles.message}>
-            Recovery mode gives you a fresh start with a 3-day micro plan focusing only on your MDD.
+          <Text style={styles.subMessage}>
+            Every expert was once a beginner. Every champion was once defeated.
+            This is just part of the journey.
           </Text>
         </View>
-
-        <View style={styles.planBox}>
-          <Text style={styles.planTitle}>3-Day Recovery Plan</Text>
-          <Text style={styles.planItem}>Focus on MDD only</Text>
-          <Text style={styles.planItem}>Small wins matter</Text>
-          <Text style={styles.planItem}>Gentle reminders</Text>
-          <Text style={styles.planItem}>No judgment</Text>
-        </View>
-
-        <PrimaryButton
-          title="Start Recovery"
-          onPress={startRecovery}
-          loading={loading}
-        />
 
         <TouchableOpacity
-          style={styles.cancelButton}
-          onPress={() => router.back()}
+          style={styles.resetButton}
+          onPress={handleReset}
         >
-          <Text style={styles.cancelText}>Cancel</Text>
+          <Text style={styles.resetButtonText}>Reset Tomorrow</Text>
         </TouchableOpacity>
       </View>
-    </ScrollView>
-  );
+    </SafeAreaView>
+  )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fafafa', // Softer background
+    backgroundColor: '#ffffff',
   },
   content: {
-    padding: spacing.lg,
-    paddingTop: spacing.xxl + 20,
-  },
-  loading: {
-    textAlign: 'center',
-    marginTop: spacing.xxl,
-    color: colors.textSecondary,
-    ...typography.body,
+    flex: 1,
+    paddingHorizontal: 24,
+    justifyContent: 'center',
   },
   title: {
-    ...typography.h1,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: 40,
   },
-  subtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginBottom: spacing.xl,
-  },
-  messageBox: {
-    backgroundColor: '#fef3c7', // Softer yellow
-    padding: spacing.lg,
-    borderRadius: 12,
-    marginBottom: spacing.lg,
+  messageCard: {
+    backgroundColor: '#f8fafc',
+    padding: 24,
+    borderRadius: 16,
+    marginBottom: 40,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
   message: {
-    ...typography.body,
-    color: '#92400e',
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  subMessage: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
     lineHeight: 24,
-    marginBottom: spacing.sm,
   },
-  planBox: {
-    backgroundColor: '#f3f4f6',
-    padding: spacing.lg,
+  resetButton: {
+    backgroundColor: '#10b981',
+    paddingVertical: 18,
+    paddingHorizontal: 32,
     borderRadius: 12,
-    marginBottom: spacing.xl,
-  },
-  planTitle: {
-    ...typography.h3,
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-  },
-  planItem: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginBottom: spacing.sm,
-  },
-  cancelButton: {
-    marginTop: spacing.md,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  cancelText: {
-    ...typography.body,
-    color: colors.textSecondary,
+  resetButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '600',
   },
-});
+})

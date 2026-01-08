@@ -1,353 +1,240 @@
-// Daily Check-In - REAL implementation with Supabase
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { database, subscribeToCheckins } from '../services/supabase';
-import { PrimaryButton } from '../components/PrimaryButton';
-import { BLOCKERS } from '../constants/blockers';
-import { getStatus, CheckIn as StatusCheckIn } from '../logic/statusEngine';
-import { getAIInsight, shouldTriggerAI } from '../services/ai';
-import { colors, typography, spacing } from '../design-system';
-import { Resolution, Checkin } from '../types';
+import React, { useState } from 'react'
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  SafeAreaView,
+} from 'react-native'
+import { useRouter, useLocalSearchParams } from 'expo-router'
+import { supabase } from '../lib/supabase'
 
 export default function CheckInScreen() {
-  const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const [resolution, setResolution] = useState<Resolution | null>(null);
-  const [done, setDone] = useState<'yes' | 'partial' | 'no' | null>(null);
-  const [blocker, setBlocker] = useState<string>('');
-  const [energy, setEnergy] = useState(3);
-  const [loading, setLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Run once when the id param changes (intentionally stable)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const loadResolution = React.useCallback(async () => {
-    if (!id) return;
-
-    setLoading(true);
-    try {
-      // Get resolution details
-      const { data: resolutionData, error } = await supabase
-        .from('resolutions')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) throw error;
-      setResolution(resolutionData);
-
-      // Set up real-time subscription for check-ins
-      const subscription = subscribeToCheckins(id, (payload: unknown) => {
-        const p = payload as Record<string, unknown>;
-        console.log('New check-in:', p['new']);
-        // Could update UI here if needed
-      });
-
-      return () => {
-        supabase.removeChannel(subscription);
-      };
-    } catch (err: unknown) {
-      console.error('Error loading resolution:', err);
-      Alert.alert('Error', 'Failed to load resolution');
-      router.back();
-    } finally {
-      setLoading(false);
-    }
-  }, [id, router]);
-
-  useEffect(() => {
-    if (id) {
-      loadResolution();
-    }
-  }, [id, loadResolution]);
+  const router = useRouter()
+  const { goalId, status } = useLocalSearchParams<{ goalId: string; status: string }>()
+  const [energy, setEnergy] = useState(3)
+  const [loading, setLoading] = useState(false)
 
   const submitCheckin = async () => {
-    if (!done || !id) return;
+    if (!goalId || !status) return
 
-    setIsSubmitting(true);
+    setLoading(true)
     try {
-      // Create check-in
-      await database.createCheckin(id, {
-        execution: done,
-        blocker: blocker || undefined,
-        energy,
-      });
+      let { data: { user } } = await supabase.auth.getUser()
 
-      // Get all check-ins to calculate new status
-      const checkins = (await database.getResolutionCheckins(id, 30)) as Checkin[];
-      const statusCheckins: StatusCheckIn[] = checkins.map(ci => {
-        const obj = ci as Record<string, unknown>;
-        return {
-          created_at: String(obj['date'] ?? obj['created_at'] ?? new Date().toISOString()),
-          done: String(obj['execution'] ?? obj['done'] ?? ''),
-          energy: Number(obj['energy'] ?? 0),
-        } as StatusCheckIn;
-      });
-      const newStatus = getStatus(statusCheckins);
-
-      // Update resolution status
-      const { error: updateError } = await supabase
-        .from('resolutions')
-        .update({ status: newStatus })
-        .eq('id', id);
-
-      if (updateError) throw updateError;
-
-      // Trigger AI if needed
-      if (shouldTriggerAI(newStatus) && resolution) {
-        try {
-          const insight = await getAIInsight({
-            resolution: resolution.title,
-            status: newStatus,
-            recent_checkins: checkins.slice(0, 5),
-          });
-          console.log('AI Insight generated:', insight);
-        } catch (aiErr: unknown) {
-          console.error('AI insight failed:', aiErr);
+      // Auto sign-in anonymously if no user
+      if (!user) {
+        const { data: authData, error: authError } = await supabase.auth.signInAnonymously()
+        if (authError) {
+          Alert.alert('Error', 'Failed to authenticate. Please try again.')
+          setLoading(false)
+          return
         }
+        user = authData.user
       }
 
-      // Prompt to add proof
+      if (!user) {
+        Alert.alert('Error', 'Unable to save check-in. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      const today = new Date().toISOString().split('T')[0]
+
+      const { error } = await supabase
+        .from('checkins')
+        .insert({
+          resolution_id: goalId,
+          date: today,
+          execution: status,
+          energy: energy,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      const messages = {
+        yes: 'Great job showing up today!',
+        partial: 'Progress over perfection.',
+        no: 'Tomorrow is a new day.'
+      }
+
       Alert.alert(
-        'Check-in Saved!',
-        'Would you like to add proof of your progress?',
+        'Check-in saved!',
+        messages[status as keyof typeof messages] || 'Check-in recorded.',
         [
           {
             text: 'Add Proof',
-            onPress: () => router.replace(`/resolution?id=${id}`),
+            onPress: () => router.push('/gallery'),
           },
           {
-            text: 'Maybe Later',
+            text: 'Done',
             style: 'cancel',
-            onPress: () => router.back(),
-          },
+            onPress: () => router.replace('/(tabs)'),
+          }
         ]
-      );
+      )
     } catch (err: unknown) {
-      console.error('Error saving check-in:', err);
-      const error = err as Error;
-      Alert.alert('Error', error?.message || 'Failed to save check-in');
+      console.error('Error saving check-in:', err)
+      const error = err as Error
+      Alert.alert('Error', error?.message || 'Failed to save check-in')
     } finally {
-      setIsSubmitting(false);
+      setLoading(false)
     }
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.loading}>Loading resolution...</Text>
-      </View>
-    );
   }
 
-  const today = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        {resolution && (
-          <Text style={styles.resolutionTitle}>{resolution.title}</Text>
-        )}
+        <Text style={styles.title}>Daily Check-In</Text>
 
-        <Text style={styles.date}>{today}</Text>
+        <View style={styles.questionSection}>
+          <Text style={styles.question}>Did you show up today?</Text>
 
-        {/* Question 1: Did you complete MDD? */}
-        <View style={styles.question}>
-          <Text style={styles.questionText}>Did you complete your MDD today?</Text>
-          <View style={styles.options}>
-            <TouchableOpacity
-              style={[styles.option, done === 'yes' && styles.optionActive]}
-              onPress={() => setDone('yes')}
-            >
-              <Text style={[styles.optionText, done === 'yes' && styles.optionTextActive]}>
-                Yes
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.option, done === 'partial' && styles.optionActive]}
-              onPress={() => setDone('partial')}
-            >
-              <Text style={[styles.optionText, done === 'partial' && styles.optionTextActive]}>
-                Partial
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.option, done === 'no' && styles.optionActive]}
-              onPress={() => setDone('no')}
-            >
-              <Text style={[styles.optionText, done === 'no' && styles.optionTextActive]}>
-                No
-              </Text>
-            </TouchableOpacity>
+          <View style={styles.statusIndicator}>
+            <Text style={styles.statusText}>
+              {status === 'yes' && '✅ Yes'}
+              {status === 'partial' && '🟡 Partial'}
+              {status === 'no' && '❌ No'}
+            </Text>
           </View>
         </View>
 
-        {/* Question 2: Blocker */}
-        {done && (
-          <View style={styles.question}>
-            <Text style={styles.questionText}>What blocked you?</Text>
-            <View style={styles.blockerGrid}>
-              {BLOCKERS.map((b) => (
-                <TouchableOpacity
-                  key={b}
-                  style={[styles.blockerChip, blocker === b && styles.blockerChipActive]}
-                  onPress={() => setBlocker(blocker === b ? '' : b)}
-                >
-                  <Text style={[styles.blockerText, blocker === b && styles.blockerTextActive]}>
-                    {b}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+        <View style={styles.energySection}>
+          <Text style={styles.energyLabel}>Energy Level</Text>
+          <View style={styles.energySlider}>
+            {[1, 2, 3, 4, 5].map((level) => (
+              <TouchableOpacity
+                key={level}
+                style={[
+                  styles.energyDot,
+                  energy >= level && styles.energyDotActive
+                ]}
+                onPress={() => setEnergy(level)}
+              >
+                <Text style={[
+                  styles.energyNumber,
+                  energy >= level && styles.energyNumberActive
+                ]}>
+                  {level}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
-        )}
+          <Text style={styles.energyDescription}>
+            {energy <= 2 ? 'Low energy' : energy === 3 ? 'Normal' : energy >= 4 ? 'High energy' : ''}
+          </Text>
+        </View>
 
-        {/* Question 3: Energy */}
-        {done && (
-          <View style={styles.question}>
-            <Text style={styles.questionText}>Energy level</Text>
-            <View style={styles.energyRow}>
-              {[1, 2, 3, 4, 5].map((level) => (
-                <TouchableOpacity
-                  key={level}
-                  style={[styles.energyButton, energy >= level && styles.energyButtonActive]}
-                  onPress={() => setEnergy(level)}
-                >
-                  <Text style={[styles.energyText, energy >= level && styles.energyTextActive]}>
-                    {level}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        <PrimaryButton
-          title="Save Check-in"
+        <TouchableOpacity
+          style={styles.saveButton}
           onPress={submitCheckin}
-          loading={isSubmitting}
-          disabled={!done}
-        />
+          disabled={loading}
+        >
+          <Text style={styles.saveButtonText}>
+            {loading ? 'Saving...' : 'Save Check-In'}
+          </Text>
+        </TouchableOpacity>
       </View>
-    </View>
-  );
+    </SafeAreaView>
+  )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#ffffff',
   },
   content: {
     flex: 1,
-    padding: spacing.lg,
-    paddingTop: spacing.xxl + 20,
-    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 20,
   },
-  loading: {
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#111827',
     textAlign: 'center',
-    marginTop: spacing.xxl,
-    color: colors.textSecondary,
-    ...typography.body,
+    marginBottom: 40,
   },
-  resolutionTitle: {
-    ...typography.h2,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  date: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginBottom: spacing.xl,
-    textAlign: 'center',
+  questionSection: {
+    marginBottom: 40,
   },
   question: {
-    marginBottom: spacing.xl,
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: 24,
   },
-  questionText: {
-    ...typography.h3,
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-  },
-  options: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  option: {
-    flex: 1,
-    padding: spacing.lg,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: 8,
+  statusIndicator: {
     alignItems: 'center',
   },
-  optionActive: {
-    borderColor: colors.accent,
-    backgroundColor: colors.accent,
-  },
-  optionText: {
-    ...typography.body,
-    color: colors.textSecondary,
+  statusText: {
+    fontSize: 20,
     fontWeight: '600',
   },
-  optionTextActive: {
-    color: '#ffffff',
+  energySection: {
+    marginBottom: 40,
   },
-  blockerGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  blockerChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 20,
-  },
-  blockerChipActive: {
-    borderColor: colors.accent,
-    backgroundColor: colors.accent,
-  },
-  blockerText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-  },
-  blockerTextActive: {
-    color: '#ffffff',
+  energyLabel: {
+    fontSize: 20,
     fontWeight: '600',
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: 24,
   },
-  energyRow: {
+  energySlider: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 16,
   },
-  energyButton: {
-    flex: 1,
-    padding: spacing.md,
+  energyDot: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: 8,
+    borderColor: '#e5e7eb',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  energyButtonActive: {
-    borderColor: colors.accent,
-    backgroundColor: colors.accent,
+  energyDotActive: {
+    backgroundColor: '#3b82f6',
+    borderColor: '#3b82f6',
   },
-  energyText: {
-    ...typography.h3,
-    color: colors.textSecondary,
+  energyNumber: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#6b7280',
   },
-  energyTextActive: {
+  energyNumberActive: {
     color: '#ffffff',
   },
-});
-
-// Add missing import
-import { supabase } from '../services/supabase';
+  energyDescription: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
+  },
+  saveButton: {
+    backgroundColor: '#10b981',
+    paddingVertical: 18,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  saveButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+})
