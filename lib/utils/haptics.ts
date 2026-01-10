@@ -2,20 +2,20 @@
 // Haptics only work on native platforms (iOS/Android), not on web
 import { Platform } from 'react-native'
 
-// Check if haptics module is available (it's not on web)
-let Haptics: any = null
-let isWeb = false
+// Check platform first before any haptics import
+const isWeb = Platform.OS === 'web'
 
-try {
-  // Only import haptics if not on web
-  if (Platform.OS !== 'web') {
+// Only import haptics module if not on web (to prevent web errors)
+let Haptics: any = null
+
+if (!isWeb) {
+  try {
+    // Dynamic require to prevent web bundling issues
     Haptics = require('expo-haptics')
-  } else {
-    isWeb = true
+  } catch (error) {
+    // If import fails, haptics unavailable (shouldn't happen on native, but handle gracefully)
+    Haptics = null
   }
-} catch (error) {
-  // If import fails, assume web or haptics unavailable
-  isWeb = true
 }
 
 /**
