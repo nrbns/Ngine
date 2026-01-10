@@ -9,9 +9,9 @@ import Animated, {
   withSequence,
   Easing,
 } from 'react-native-reanimated'
-import { useNgineStore } from '../lib/store'
-import { COLORS } from '../lib/colors'
-import { SPACING, TYPOGRAPHY, SHADOWS } from '../lib/design-tokens'
+import { useNgineStore } from '../../lib/store'
+import { COLORS } from '../../lib/config/colors'
+import { SPACING, TYPOGRAPHY, SHADOWS } from '../../lib/config/design-tokens'
 
 export const RealtimeIndicator: React.FC = () => {
   const isOnline = useNgineStore((state) => state.isOnline)

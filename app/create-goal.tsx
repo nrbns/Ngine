@@ -12,9 +12,9 @@ import {
   ScrollView,
 } from 'react-native'
 import { useRouter } from 'expo-router'
-import { supabase } from '../lib/supabase'
-import { COLORS } from '../lib/colors'
-import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../lib/design-tokens'
+import { supabase } from '../lib/api/supabase'
+import { COLORS } from '../lib/config/colors'
+import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../lib/config/design-tokens'
 import * as Haptics from 'expo-haptics'
 
 const DURATION_OPTIONS = ['7 Days', '14 Days', '30 Days', '60 Days', '90 Days']

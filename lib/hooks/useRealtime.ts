@@ -1,8 +1,8 @@
 // Comprehensive realtime hook for NGINE
 import { useEffect, useRef, useCallback } from 'react'
-import { supabase } from './supabase'
-import { useNgineStore } from './store'
-import { getTodayStatus } from './realtime'
+import { supabase } from '../api/supabase'
+import { useNgineStore } from '../store'
+import { getTodayStatus } from '../utils/realtime'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 interface UseRealtimeOptions {

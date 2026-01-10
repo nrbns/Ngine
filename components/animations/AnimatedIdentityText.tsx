@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react'
 import { Text, StyleSheet, Animated } from 'react-native'
-import { COLORS } from '../lib/colors'
-import { TYPOGRAPHY } from '../lib/design-tokens'
-import { ANIMATION_TIMINGS } from '../lib/animations'
+import { COLORS } from '../../lib/config/colors'
+import { TYPOGRAPHY } from '../../lib/config/design-tokens'
+import { ANIMATION_TIMINGS } from '../../lib/config/animations'
 
 interface AnimatedIdentityTextProps {
   identity: string

@@ -1,8 +1,8 @@
 import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
-import { COLORS } from '../lib/colors'
-import { TYPOGRAPHY, SHADOWS } from '../lib/design-tokens'
+import { COLORS } from '../../lib/config/colors'
+import { TYPOGRAPHY, SHADOWS } from '../../lib/config/design-tokens'
 
 interface ProgressCircleProps {
   current: number

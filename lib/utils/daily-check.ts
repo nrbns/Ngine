@@ -1,6 +1,5 @@
 // Daily resolution checking service
-import { supabase } from './supabase'
-import { Resolution } from './supabase'
+import { supabase, Resolution } from '../api/supabase'
 
 /**
  * Check if a resolution has completed based on its duration

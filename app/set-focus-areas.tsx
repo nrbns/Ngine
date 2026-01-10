@@ -11,8 +11,8 @@ import {
 import { useRouter } from 'expo-router'
 import Animated, { FadeInUp } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
-import { COLORS } from '../lib/colors'
-import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../lib/design-tokens'
+import { COLORS } from '../lib/config/colors'
+import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../lib/config/design-tokens'
 
 interface FocusArea {
   id: string

@@ -1,5 +1,5 @@
 // Real-time state management for NGINE
-import { supabase, Checkin, Resolution } from './supabase'
+import { supabase, Checkin, Resolution } from '../api/supabase'
 
 export type IntegrityStatus = 'ALIGNED' | 'DRIFTING' | 'NONE'
 

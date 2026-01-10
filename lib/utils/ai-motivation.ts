@@ -1,7 +1,7 @@
 // AI-Powered Motivation Support System
 // Generates personalized motivational content based on user context
 
-import { Resolution, Checkin } from './supabase'
+import { Resolution, Checkin } from '../api/supabase'
 import { TodayStatus, IntegrityStatus } from './realtime'
 
 export interface MotivationContext {

@@ -1,7 +1,7 @@
 import React from 'react'
 import { View, StyleSheet } from 'react-native'
 import { Shimmer } from './Shimmer'
-import { SPACING } from '../lib/design-tokens'
+import { SPACING } from '../../lib/config/design-tokens'
 
 interface LoadingSkeletonProps {
   type?: 'card' | 'list' | 'button' | 'custom'

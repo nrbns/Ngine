@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react'
 import { View, StyleSheet, Animated } from 'react-native'
-import { COLORS } from '../lib/colors'
-import { SPACING, BORDER_RADIUS, SHADOWS } from '../lib/design-tokens'
-import { SCALE } from '../lib/animations'
+import { COLORS } from '../../lib/config/colors'
+import { SPACING, BORDER_RADIUS, SHADOWS } from '../../lib/config/design-tokens'
+import { SCALE } from '../../lib/config/animations'
 
 interface BreathingCardProps {
   children: React.ReactNode

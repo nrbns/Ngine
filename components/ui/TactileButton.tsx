@@ -1,9 +1,9 @@
 import React, { useRef } from 'react'
 import { TouchableOpacity, Text, StyleSheet, Animated } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import { COLORS } from '../lib/colors'
-import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../lib/design-tokens'
-import { SCALE, ANIMATION_TIMINGS } from '../lib/animations'
+import { COLORS } from '../../lib/config/colors'
+import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../../lib/config/design-tokens'
+import { SCALE, ANIMATION_TIMINGS } from '../../lib/config/animations'
 
 interface TactileButtonProps {
   label: string

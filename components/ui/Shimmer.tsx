@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { View, StyleSheet, Animated } from 'react-native'
-import { COLORS } from '../lib/colors'
-import { BORDER_RADIUS, SPACING } from '../lib/design-tokens'
+import { COLORS } from '../../lib/config/colors'
+import { BORDER_RADIUS, SPACING } from '../../lib/config/design-tokens'
 
 interface ShimmerProps {
   width?: number | string

@@ -1,7 +1,7 @@
 // Global state management for NGINE using Zustand
 import { create } from 'zustand'
-import { Resolution, Checkin, GoalProof } from './supabase'
-import { TodayStatus, IntegrityStatus } from './realtime'
+import { Resolution, Checkin, GoalProof } from './api/supabase'
+import { TodayStatus, IntegrityStatus } from './utils/realtime'
 
 interface NgineState {
   // User data

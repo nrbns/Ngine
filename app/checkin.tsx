@@ -12,10 +12,10 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import Animated, { withSpring, useSharedValue, useAnimatedStyle, FadeInUp } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
-import { supabase } from '../lib/supabase'
-import { generateCheckinMotivation } from '../lib/ai-motivation'
-import { COLORS } from '../lib/colors'
-import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../lib/design-tokens'
+import { supabase } from '../lib/api/supabase'
+import { generateCheckinMotivation } from '../lib/utils/ai-motivation'
+import { COLORS } from '../lib/config/colors'
+import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../lib/config/design-tokens'
 
 export default function CheckInScreen() {
   const router = useRouter()

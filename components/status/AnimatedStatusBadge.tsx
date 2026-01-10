@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react'
 import { View, Text, StyleSheet, Animated } from 'react-native'
-import { IntegrityStatus } from '../lib/realtime'
-import { COLORS } from '../lib/colors'
-import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../lib/design-tokens'
-import { SCALE, ANIMATION_TIMINGS } from '../lib/animations'
+import { IntegrityStatus } from '../../lib/utils/realtime'
+import { COLORS } from '../../lib/config/colors'
+import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../../lib/config/design-tokens'
+import { SCALE, ANIMATION_TIMINGS } from '../../lib/config/animations'
 
 interface AnimatedStatusBadgeProps {
   status: IntegrityStatus

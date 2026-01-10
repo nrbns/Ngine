@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { Text, StyleSheet, Animated } from 'react-native'
-import { COLORS } from '../lib/colors'
-import { ANIMATION_TIMINGS } from '../lib/animations'
+import { COLORS } from '../../lib/config/colors'
+import { ANIMATION_TIMINGS } from '../../lib/config/animations'
 
 interface CountUpNumberProps {
   value: number

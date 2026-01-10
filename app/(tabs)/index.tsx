@@ -15,24 +15,20 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
-import { supabase, Resolution } from '../../lib/supabase'
-import { BannerAdComponent } from '../../lib/ads.web'
-import { GoalCard } from '../../components/GoalCard'
-import { AnimatedIdentityText } from '../../components/AnimatedIdentityText'
-import { RealtimeIndicator } from '../../components/RealtimeIndicator'
-import { TactileButton } from '../../components/TactileButton'
+import { supabase, Resolution } from '../../lib/api/supabase'
+import { BannerAdComponent } from '../../lib/api/ads.web'
+import { GoalCard, AnimatedIdentityText, RealtimeIndicator, TactileButton, LoadingSkeleton } from '../../components'
 import {
   getTodayStatus,
   IntegrityStatus,
   TodayStatus,
-} from '../../lib/realtime'
-import { useRealtime } from '../../lib/useRealtime'
+} from '../../lib/utils/realtime'
+import { useRealtime } from '../../lib/hooks/useRealtime'
 import { useNgineStore } from '../../lib/store'
-import { performDailyChecks } from '../../lib/daily-check'
-import { generateMotivationMessage, statusToMotivationContext } from '../../lib/ai-motivation'
-import { COLORS } from '../../lib/colors'
-import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../../lib/design-tokens'
-import { LoadingSkeleton } from '../../components/LoadingSkeleton'
+import { performDailyChecks } from '../../lib/utils/daily-check'
+import { generateMotivationMessage, statusToMotivationContext } from '../../lib/utils/ai-motivation'
+import { COLORS } from '../../lib/config/colors'
+import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../../lib/config/design-tokens'
 
 export default function HomeScreen() {
   const router = useRouter()

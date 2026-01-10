@@ -10,12 +10,12 @@ import {
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { supabase } from '../lib/supabase'
+import { supabase } from '../lib/api/supabase'
 import { useNgineStore } from '../lib/store'
-import { TactileButton } from '../components/TactileButton'
-import { generateRecoveryMessage } from '../lib/ai-motivation'
-import { COLORS } from '../lib/colors'
-import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../lib/design-tokens'
+import { TactileButton } from '../components'
+import { generateRecoveryMessage } from '../lib/utils/ai-motivation'
+import { COLORS } from '../lib/config/colors'
+import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../lib/config/design-tokens'
 import Animated, { FadeInUp } from 'react-native-reanimated'
 
 export default function RecoveryScreen() {

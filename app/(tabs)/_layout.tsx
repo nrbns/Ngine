@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router'
 import { View, Text, StyleSheet } from 'react-native'
-import { COLORS } from '../../lib/colors'
-import { SPACING, SHADOWS } from '../../lib/design-tokens'
+import { COLORS } from '../../lib/config/colors'
+import { SPACING, SHADOWS } from '../../lib/config/design-tokens'
 
 function TabBarIcon({ name, focused }: { name: string; focused: boolean }) {
   const icons = {

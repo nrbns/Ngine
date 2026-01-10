@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react'
 import { View, Text, StyleSheet, Animated } from 'react-native'
-import { IntegrityDot } from '../lib/realtime'
-import { COLORS } from '../lib/colors'
-import { ANIMATION_TIMINGS } from '../lib/animations'
-import { SHADOWS } from '../lib/design-tokens'
+import { IntegrityDot } from '../../lib/utils/realtime'
+import { COLORS } from '../../lib/config/colors'
+import { ANIMATION_TIMINGS } from '../../lib/config/animations'
+import { SHADOWS } from '../../lib/config/design-tokens'
 
 interface IntegrityDotsProps {
   dots: IntegrityDot[]

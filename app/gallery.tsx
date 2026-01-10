@@ -10,13 +10,13 @@ import {
   SafeAreaView,
 } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { supabase, GoalProof } from '../lib/supabase'
-import { showRewardedAd } from '../lib/ads'
-import { RealtimeIndicator } from '../components/RealtimeIndicator'
-import { useRealtime } from '../lib/useRealtime'
+import { supabase, GoalProof } from '../lib/api/supabase'
+import { showRewardedAd } from '../lib/api/ads'
+import { RealtimeIndicator } from '../components'
+import { useRealtime } from '../lib/hooks/useRealtime'
 import { useNgineStore } from '../lib/store'
-import { COLORS } from '../lib/colors'
-import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../lib/design-tokens'
+import { COLORS } from '../lib/config/colors'
+import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../lib/config/design-tokens'
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated'
 
 export default function GalleryScreen() {

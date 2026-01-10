@@ -1,12 +1,12 @@
 import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import Animated, { FadeInDown } from 'react-native-reanimated'
-import { AnimatedStatusBadge } from './AnimatedStatusBadge'
+import { AnimatedStatusBadge } from '../status/AnimatedStatusBadge'
 import { BreathingCard } from './BreathingCard'
 import { ProgressCircle } from './ProgressCircle'
-import { IntegrityStatus } from '../lib/realtime'
-import { COLORS } from '../lib/colors'
-import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../lib/design-tokens'
+import { IntegrityStatus } from '../../lib/utils/realtime'
+import { COLORS } from '../../lib/config/colors'
+import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../../lib/config/design-tokens'
 
 interface Goal {
   id: string
