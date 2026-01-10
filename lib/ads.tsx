@@ -1,31 +1,33 @@
-import { Platform } from 'react-native'
 import React from 'react'
+import { Platform } from 'react-native'
 
-// Banner Ad - Safe placement for earning
-// Only render on native platforms, not web
+// This file should NOT be imported on web - Metro should use ads.web.tsx instead
+// If you see this error, Metro's platform resolution isn't working correctly
+
+// For web, this should never execute because Metro should resolve to ads.web.tsx
+// But we add a safety check just in case
 export const BannerAdComponent: React.FC = () => {
-  // Skip ads on web platform
+  // Early return for web platform
   if (Platform.OS === 'web') {
     return null
   }
 
-  // Only load on native platforms using lazy loading
+  // Native-only code
   const [AdComponent, setAdComponent] = React.useState<React.ReactElement | null>(null)
 
   React.useEffect(() => {
-    // Only load on native platforms
+    // Double check platform
     if (Platform.OS === 'web') {
       return
     }
 
-    // Lazy load AdMob to prevent web bundler from resolving it
-    const loadAdMob = async () => {
+    // Use eval to prevent Metro from analyzing this require at build time
+    // This is a workaround for Metro's static analysis
+    const loadAdMob = () => {
       try {
-        // Use require inside async function to prevent static analysis
-        const AdMobModule = await Promise.resolve().then(() => 
-          require('react-native-google-mobile-ads')
-        )
-        
+        // Use Function constructor to prevent static analysis
+        const requireAdMob = new Function('return require("react-native-google-mobile-ads")')
+        const AdMobModule = requireAdMob()
         const { BannerAd, BannerAdSize, TestIds } = AdMobModule
         const adUnitId = __DEV__
           ? TestIds.BANNER

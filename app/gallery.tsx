@@ -9,14 +9,33 @@ import {
   Alert,
   SafeAreaView,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { supabase, GoalProof } from '../lib/supabase'
 import { showRewardedAd } from '../lib/ads'
+import { RealtimeIndicator } from '../components/RealtimeIndicator'
+import { useRealtime } from '../lib/useRealtime'
+import { useNgineStore } from '../lib/store'
+import { COLORS } from '../lib/colors'
+import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../lib/design-tokens'
+import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated'
 
 export default function GalleryScreen() {
   const router = useRouter()
-  const [proofs, setProofs] = useState<GoalProof[]>([])
+  const { goalId } = useLocalSearchParams<{ goalId?: string }>()
   const [loading, setLoading] = useState(true)
+
+  // Zustand store
+  const proofs = useNgineStore((state) => state.proofs)
+  const setProofs = useNgineStore((state) => state.setProofs)
+  const activeResolution = useNgineStore((state) => state.activeResolution)
+  const setUserId = useNgineStore((state) => state.setUserId)
+
+  // Realtime hook - subscribe to proofs changes
+  const resolutionId = goalId || activeResolution?.id
+  const { isOnline } = useRealtime({
+    resolutionId: resolutionId || undefined,
+    enabled: !!resolutionId,
+  })
 
   useEffect(() => {
     loadProofs()
@@ -41,6 +60,8 @@ export default function GalleryScreen() {
         setLoading(false)
         return
       }
+
+      setUserId(user.id)
 
       // Get user's resolutions first
       const { data: resolutions } = await supabase
@@ -84,18 +105,27 @@ export default function GalleryScreen() {
     }
   }
 
-  const renderProof = ({ item }: { item: GoalProof }) => (
-    <View style={styles.proofCard}>
-      <Image
-        source={{ uri: item.image_url }}
-        style={styles.proofImage}
-        resizeMode="cover"
-      />
-      <Text style={styles.proofDate}>
-        {new Date(item.created_at).toLocaleDateString()}
-      </Text>
-    </View>
-  )
+  const renderProof = ({ item }: { item: GoalProof }) => {
+    const date = new Date(item.created_at)
+    const month = date.toLocaleDateString('en-US', { month: 'short' })
+    const day = date.getDate()
+    const description = item.description || 'Proof'
+    
+    return (
+      <View style={styles.proofCard}>
+        <Image
+          source={{ uri: item.image_url }}
+          style={styles.proofImage}
+          resizeMode="cover"
+        />
+        <View style={styles.proofDate}>
+          <Text style={styles.proofDateText}>
+            {month} {day} / {description}
+          </Text>
+        </View>
+      </View>
+    )
+  }
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
@@ -110,36 +140,64 @@ export default function GalleryScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Progress Proof</Text>
-        <View style={styles.placeholder} />
+        <Text style={styles.title}>Select or Capture Proof</Text>
+        <RealtimeIndicator />
       </View>
 
-      {proofs.length === 0 ? (
-        renderEmptyState()
-      ) : (
-        <FlatList
-          data={proofs}
-          renderItem={renderProof}
-          keyExtractor={(item) => item.id}
-          numColumns={3}
-          contentContainerStyle={styles.gridContainer}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+      <View style={styles.content}>
+        <Animated.View entering={FadeInUp.delay(100).duration(300)} style={styles.actionButtons}>
+          <Animated.View entering={FadeInUp.delay(150).duration(300)}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleUploadProof}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.actionButtonIcon}>📷</Text>
+              <Text style={styles.actionButtonText}>Take Photo</Text>
+            </TouchableOpacity>
+          </Animated.View>
+          <Animated.View entering={FadeInUp.delay(200).duration(300)}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleUploadProof}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.actionButtonIcon}>📁</Text>
+              <Text style={styles.actionButtonText}>Upload File</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
 
-      <View style={styles.uploadSection}>
-        <TouchableOpacity
-          style={styles.uploadButton}
-          onPress={handleUploadProof}
-        >
-          <Text style={styles.uploadButtonText}>🎥 Watch ad to upload proof</Text>
-        </TouchableOpacity>
-        <Text style={styles.uploadNote}>
-          Rewarded ads help keep the app free while you earn proof badges.
-        </Text>
+        <Animated.View entering={FadeInUp.delay(250).duration(300)}>
+          <Text style={styles.sectionHeader}>Most Recent Proofs</Text>
+        </Animated.View>
+
+        {proofs.length === 0 ? (
+          <Animated.View entering={FadeInUp.delay(300).duration(300)} style={styles.emptyGrid}>
+            <View style={styles.emptyIconContainer}>
+              <Text style={styles.emptyEmoji}>📸</Text>
+            </View>
+            <Text style={styles.emptyTitle}>No proofs yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Visual evidence of your progress builds momentum and accountability.
+            </Text>
+          </Animated.View>
+        ) : (
+          <FlatList
+            data={proofs.slice(0, 6)}
+            renderItem={({ item, index }) => (
+              <Animated.View entering={FadeIn.delay(index * 50).duration(300)}>
+                {renderProof({ item })}
+              </Animated.View>
+            )}
+            keyExtractor={(item) => item.id}
+            numColumns={3}
+            contentContainerStyle={styles.gridContainer}
+            columnWrapperStyle={styles.columnWrapper}
+            showsVerticalScrollIndicator={false}
+            scrollEnabled={false}
+          />
+        )}
       </View>
     </SafeAreaView>
   )
@@ -148,66 +206,112 @@ export default function GalleryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  backButton: {
-    padding: 8,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: '#3b82f6',
-    fontWeight: '500',
+    paddingHorizontal: SPACING.screen,
+    paddingTop: SPACING.section,
+    marginBottom: SPACING.lg,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+    ...TYPOGRAPHY.greeting,
+    fontSize: 28,
+    color: COLORS.textPrimary,
   },
-  placeholder: {
-    width: 50,
-  },
-  emptyState: {
+  content: {
     flex: 1,
+    paddingHorizontal: SPACING.screen,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    marginBottom: SPACING.xl,
+  },
+  actionButton: {
+    flex: 1,
+    aspectRatio: 1,
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.card,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    borderWidth: 1,
+    borderColor: COLORS.border + '40',
+    ...SHADOWS.md,
+    overflow: 'hidden',
+  },
+  actionButtonIcon: {
+    fontSize: 40,
+    marginBottom: SPACING.sm,
+  },
+  actionButtonText: {
+    ...TYPOGRAPHY.label,
+    fontSize: 16,
+    color: COLORS.textPrimary,
+  },
+  sectionHeader: {
+    ...TYPOGRAPHY.label,
+    fontSize: 16,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.md,
+  },
+  gridContainer: {
+    paddingVertical: SPACING.md,
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
+    marginBottom: SPACING.sm,
+  },
+  emptyGrid: {
+    flex: 1,
+    paddingVertical: SPACING.xl * 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 300,
+  },
+  emptyIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: COLORS.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.xl,
+    borderWidth: 2,
+    borderColor: COLORS.primary + '40',
+    ...SHADOWS.md,
   },
   emptyEmoji: {
     fontSize: 48,
-    marginBottom: 16,
   },
   emptyTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#111827',
+    ...TYPOGRAPHY.goalTitle,
+    fontSize: 22,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.sm,
     textAlign: 'center',
-    marginBottom: 12,
   },
   emptySubtitle: {
-    fontSize: 16,
-    color: '#6b7280',
+    ...TYPOGRAPHY.goalMdd,
+    fontSize: 15,
+    color: COLORS.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
-  },
-  gridContainer: {
-    padding: 16,
+    maxWidth: 280,
+    opacity: 0.8,
+    lineHeight: 22,
   },
   proofCard: {
     flex: 1,
-    margin: 4,
     aspectRatio: 1,
-    borderRadius: 8,
+    borderRadius: BORDER_RADIUS.md,
     overflow: 'hidden',
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.card,
+    margin: SPACING.xs / 2,
+    borderWidth: 1,
+    borderColor: COLORS.border + '40',
+    ...SHADOWS.sm,
   },
   proofImage: {
     width: '100%',
@@ -215,44 +319,18 @@ const styles = StyleSheet.create({
   },
   proofDate: {
     position: 'absolute',
-    bottom: 8,
-    left: 8,
-    right: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    color: '#ffffff',
-    fontSize: 12,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    textAlign: 'center',
-  },
-  uploadSection: {
-    padding: 20,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: COLORS.overlay,
+    padding: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: COLORS.border + '20',
   },
-  uploadButton: {
-    backgroundColor: '#3b82f6',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  uploadButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  uploadNote: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-    lineHeight: 20,
+  proofDateText: {
+    fontSize: 11,
+    color: COLORS.textPrimary,
+    fontWeight: '500',
   },
 })

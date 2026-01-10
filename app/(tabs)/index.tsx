@@ -2,76 +2,76 @@ import React, { useEffect, useState } from 'react'
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  Alert,
+  ActivityIndicator,
+  Pressable,
 } from 'react-native'
 import { useRouter } from 'expo-router'
-import { supabase, Resolution, ngineChannel } from '../../lib/supabase'
-// Import ads component - it handles web platform internally
-import { BannerAdComponent } from '../../lib/ads'
+import Animated, {
+  FadeInUp,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated'
+import * as Haptics from 'expo-haptics'
+import { supabase, Resolution } from '../../lib/supabase'
+import { BannerAdComponent } from '../../lib/ads.web'
 import { GoalCard } from '../../components/GoalCard'
-import { IdentityHeader } from '../../components/IdentityHeader'
+import { AnimatedIdentityText } from '../../components/AnimatedIdentityText'
+import { RealtimeIndicator } from '../../components/RealtimeIndicator'
+import { TactileButton } from '../../components/TactileButton'
+import {
+  getTodayStatus,
+  IntegrityStatus,
+  TodayStatus,
+} from '../../lib/realtime'
+import { useRealtime } from '../../lib/useRealtime'
+import { useNgineStore } from '../../lib/store'
+import { performDailyChecks } from '../../lib/daily-check'
+import { generateMotivationMessage, statusToMotivationContext } from '../../lib/ai-motivation'
+import { COLORS } from '../../lib/colors'
+import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../../lib/design-tokens'
+import { LoadingSkeleton } from '../../components/LoadingSkeleton'
 
 export default function HomeScreen() {
   const router = useRouter()
-  const [goal, setGoal] = useState<Resolution | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [previousIdentity, setPreviousIdentity] = useState<string | undefined>()
 
-  useEffect(() => {
-    loadGoal()
+  // Zustand store
+  const goal = useNgineStore((state) => state.activeResolution)
+  const todayStatus = useNgineStore((state) => state.todayStatus)
+  const setGoal = useNgineStore((state) => state.setActiveResolution)
+  const setTodayStatus = useNgineStore((state) => state.setTodayStatus)
+  const setUserId = useNgineStore((state) => state.setUserId)
 
-    // Real-time updates (only if Supabase is configured)
-    if (process.env.EXPO_PUBLIC_SUPABASE_URL && process.env.EXPO_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
-      try {
-        const channel = ngineChannel
-          .on('postgres_changes',
-            { event: '*', table: 'resolutions' },
-            () => loadGoal()
-          )
-          .on('postgres_changes',
-            { event: '*', table: 'checkins' },
-            () => loadGoal()
-          )
-          .subscribe()
+  // Animation values
+  const buttonScale = useSharedValue(1)
 
-        return () => {
-          supabase.removeChannel(channel)
-        }
-      } catch (error) {
-        console.warn('Real-time subscription error:', error)
-      }
-    }
-  }, [])
+  // Realtime hook - automatically subscribes to changes
+  const { isOnline, refreshTodayStatus } = useRealtime({
+    resolutionId: goal?.id,
+    enabled: !!goal,
+  })
 
-  const loadGoal = async () => {
+  // Load goal and status
+  const loadData = async () => {
     try {
-      // Check if Supabase is configured
-      if (!process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co') {
-        console.warn('Supabase not configured - using offline mode')
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL
+      if (!supabaseUrl || supabaseUrl === 'https://placeholder.supabase.co' || supabaseUrl.includes('placeholder')) {
+        console.warn('Supabase not configured - running in offline mode')
         setLoading(false)
+        setGoal(null)
+        setTodayStatus(null)
         return
       }
 
       let { data: { user } } = await supabase.auth.getUser()
       
-      // Auto sign-in anonymously if no user
       if (!user) {
-        try {
-          const { data: authData, error: authError } = await supabase.auth.signInAnonymously()
-          if (authError) {
-            console.error('Error signing in anonymously:', authError)
-            setLoading(false)
-            return
-          }
-          user = authData.user
-        } catch (authErr) {
-          console.error('Auth error:', authErr)
-          setLoading(false)
-          return
-        }
+        const { data: authData } = await supabase.auth.signInAnonymously()
+        user = authData?.user || null
       }
 
       if (!user) {
@@ -79,8 +79,10 @@ export default function HomeScreen() {
         return
       }
 
-      // Get active goal (most recent)
-      const { data, error } = await supabase
+      setUserId(user.id)
+
+      // Get active goal
+      const { data: goalData } = await supabase
         .from('resolutions')
         .select('*')
         .eq('user_id', user.id)
@@ -89,258 +91,366 @@ export default function HomeScreen() {
         .limit(1)
         .maybeSingle()
 
-      if (error && error.code !== 'PGRST116') {
-        // PGRST116 means no rows found, which is fine
-        console.error('Error loading goal:', error)
+      if (goalData) {
+        setGoal(goalData)
+        
+        // Perform daily checks (completion, missed days, etc.)
+        await performDailyChecks(goalData, user.id)
+        
+        // Refresh goal data after daily checks (in case status changed)
+        const { data: updatedGoal } = await supabase
+          .from('resolutions')
+          .select('*')
+          .eq('id', goalData.id)
+          .single()
+        
+        if (updatedGoal) {
+          setGoal(updatedGoal)
+          
+        // Get today's status AFTER daily checks
+        const status = await getTodayStatus(updatedGoal.id, user.id)
+        
+        // Get recent check-ins for AI context
+        const { data: recentCheckins } = await supabase
+          .from('checkins')
+          .select('*')
+          .eq('resolution_id', updatedGoal.id)
+          .order('date', { ascending: false })
+          .limit(7)
+        
+        // Generate AI-powered identity message
+        const context = statusToMotivationContext(status, updatedGoal, recentCheckins || [])
+        const newIdentity = generateMotivationMessage(context, 'identity')
+        
+        if (todayStatus) {
+          const oldContext = statusToMotivationContext(todayStatus, updatedGoal, recentCheckins || [])
+          const oldIdentity = generateMotivationMessage(oldContext, 'identity')
+          if (oldIdentity !== newIdentity) {
+            setPreviousIdentity(oldIdentity)
+          }
+        }
+        
+        setTodayStatus(status)
+        }
       } else {
-        setGoal(data || null)
+        setGoal(null)
+        setTodayStatus(null)
       }
     } catch (error) {
-      console.error('Error loading goal:', error)
-      // Don't crash the app, just show empty state
+      console.error('Error loading data:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleCheckin = (status: 'yes' | 'partial' | 'no') => {
+  // Initial load
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  // Refresh today status when goal changes
+  useEffect(() => {
+    if (goal) {
+      refreshTodayStatus()
+    }
+  }, [goal?.id, refreshTodayStatus])
+
+  const handleCheckin = (type: 'yes' | 'partial' | 'no') => {
     if (!goal) {
-      Alert.alert('No Goal', 'Create a goal first to start checking in.', [
-        { text: 'Create Goal', onPress: () => router.push('/create-goal') },
-        { text: 'Cancel', style: 'cancel' }
-      ])
+      router.push('/create-goal')
       return
     }
 
+    // Haptic feedback
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    
+    // Spring animation
+    buttonScale.value = withSpring(0.96, {}, () => {
+      buttonScale.value = withSpring(1)
+    })
+
+    // Optimistic update - update UI immediately
+    const optimisticStatus: TodayStatus = {
+      hasCheckedIn: true,
+      status: type === 'yes' ? 'ALIGNED' : type === 'partial' ? 'DRIFTING' : 'DRIFTING',
+      lastCheckin: {
+        id: 'temp',
+        resolution_id: goal.id,
+        execution: type,
+        energy: 3,
+        created_at: new Date().toISOString(),
+      },
+      streak: type === 'yes' ? (todayStatus?.streak || 0) + 1 : 0,
+    }
+    
+    setTodayStatus(optimisticStatus)
+    
+    // Generate previous identity message for animation
+    if (goal && todayStatus) {
+      const prevContext = statusToMotivationContext(todayStatus, goal, [])
+      const prevIdentity = generateMotivationMessage(prevContext, 'identity')
+      setPreviousIdentity(prevIdentity)
+    }
+
+    // Navigate to check-in screen
     router.push({
       pathname: '/checkin',
-      params: { goalId: goal.id, status }
+      params: { goalId: goal.id, status: type }
     })
   }
 
-  // Error fallback
-  if (error) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorTitle}>Something went wrong</Text>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={() => {
-              setError(null)
-              setLoading(true)
-              loadGoal()
-            }}
-          >
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    )
-  }
+  // Animated style for action buttons
+  const buttonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: buttonScale.value }],
+  }))
+
+  // Get AI-generated identity message
+  const identityMessage = goal && todayStatus
+    ? generateMotivationMessage(
+        statusToMotivationContext(todayStatus, goal, []),
+        'identity'
+      )
+    : 'Today is your canvas. Paint it with action.'
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loading}>
+        <Animated.View entering={FadeInUp.duration(180)} style={styles.loading}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Loading your day...</Text>
-        </View>
+          <View style={styles.loadingSkeletonContainer}>
+            <LoadingSkeleton type="card" count={1} />
+          </View>
+        </Animated.View>
       </SafeAreaView>
     )
   }
 
-  try {
-    return (
-      <SafeAreaView style={styles.container}>
-        <IdentityHeader />
+  const getCurrentTimeGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'Good morning'
+    if (hour < 17) return 'Good afternoon'
+    return 'Good evening'
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <Text style={styles.greeting}>{getCurrentTimeGreeting()}</Text>
+          <RealtimeIndicator />
+        </View>
+        <AnimatedIdentityText identity={identityMessage} />
+      </View>
 
       <View style={styles.content}>
-        {goal ? (
+        {goal && todayStatus ? (
           <>
-            <GoalCard goal={goal} />
+            <GoalCard 
+              goal={goal} 
+              status={todayStatus.status}
+              streak={todayStatus.streak}
+              totalDays={todayStatus.streak + 7}
+            />
 
-            <View style={styles.checkinSection}>
-              <Text style={styles.question}>Did you show up today?</Text>
-              <View style={styles.buttonRow}>
-                <TouchableOpacity
-                  style={[styles.checkinButton, styles.doneButton]}
-                  onPress={() => handleCheckin('yes')}
-                >
-                  <Text style={styles.checkinButtonText}>✅ Done</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.checkinButton, styles.partialButton]}
-                  onPress={() => handleCheckin('partial')}
-                >
-                  <Text style={styles.checkinButtonText}>🟡 Partial</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.checkinButton, styles.missedButton]}
-                  onPress={() => handleCheckin('no')}
-                >
-                  <Text style={styles.checkinButtonText}>❌ Missed</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            {/* ACTION ROW */}
+            <Animated.View entering={FadeInUp.delay(200).duration(300)} style={styles.actionRow}>
+              {(['done', 'partial', 'missed'] as const).map((type, index) => {
+                const statusMap = {
+                  done: { label: '✅ Done', color: COLORS.success, status: 'yes' as const, shadow: SHADOWS.success },
+                  partial: { label: '🟡 Partial', color: COLORS.warning, status: 'partial' as const, shadow: SHADOWS.md },
+                  missed: { label: '❌ Missed', color: COLORS.danger, status: 'no' as const, shadow: SHADOWS.md },
+                }
+                const config = statusMap[type]
+                
+                return (
+                  <Animated.View 
+                    key={type} 
+                    entering={FadeInUp.delay(250 + index * 50).duration(300)}
+                    style={buttonAnimatedStyle}
+                  >
+                    <Pressable
+                      onPress={() => handleCheckin(config.status)}
+                      onPressIn={() => {
+                        buttonScale.value = withSpring(0.95)
+                      }}
+                      onPressOut={() => {
+                        buttonScale.value = withSpring(1)
+                      }}
+                      style={[
+                        styles.actionButton,
+                        { backgroundColor: config.color },
+                        config.shadow
+                      ]}
+                    >
+                      <Text style={styles.actionButtonText}>
+                        {config.label}
+                      </Text>
+                    </Pressable>
+                  </Animated.View>
+                )
+              })}
+            </Animated.View>
           </>
         ) : (
-          <View style={styles.emptyState}>
+          <Animated.View entering={FadeInUp.duration(280)} style={styles.emptyState}>
+            <View style={styles.emptyIconContainer}>
+              <Text style={styles.emptyIcon}>🎯</Text>
+            </View>
             <Text style={styles.emptyTitle}>No active goal</Text>
             <Text style={styles.emptySubtitle}>
-              Create your first goal to start building consistency
+              Create your first goal to start building consistency and track your daily progress
             </Text>
-            <TouchableOpacity
-              style={styles.createButton}
-              onPress={() => router.push('/create-goal')}
-            >
-              <Text style={styles.createButtonText}>Create Goal</Text>
-            </TouchableOpacity>
-          </View>
+            <View style={styles.emptyButtonContainer}>
+              <TactileButton
+                label="Create Goal"
+                onPress={() => router.push('/create-goal')}
+                variant="done"
+              />
+            </View>
+          </Animated.View>
         )}
       </View>
 
-      {/* Banner Ad - Safe earning placement */}
       <View style={styles.adContainer}>
         <BannerAdComponent />
       </View>
     </SafeAreaView>
-    )
-  } catch (renderError: any) {
-    console.error('Render error:', renderError)
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorTitle}>Render Error</Text>
-          <Text style={styles.errorText}>{renderError?.message || 'Unknown error'}</Text>
-        </View>
-      </SafeAreaView>
-    )
-  }
+  )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.background,
   },
   loading: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: COLORS.background,
   },
   loadingText: {
     fontSize: 16,
-    color: '#6b7280',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ef4444',
-    marginBottom: 12,
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#6b7280',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  retryButton: {
-    backgroundColor: '#3b82f6',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
+    color: COLORS.primary,
+    marginTop: 16,
+    marginBottom: SPACING.xl,
     fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+  loadingSkeletonContainer: {
+    width: '100%',
+    paddingHorizontal: SPACING.screen,
+    marginTop: SPACING.lg,
+  },
+  header: {
+    paddingHorizontal: SPACING.screen,
+    paddingTop: SPACING.section,
+    marginBottom: SPACING.lg,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.xs,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: SPACING.screen,
+    paddingTop: SPACING.section,
   },
-  checkinSection: {
-    marginBottom: 20,
+  greeting: {
+    ...TYPOGRAPHY.greeting,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.xs,
   },
-  question: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  buttonRow: {
+  actionRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: SPACING.actionButtonGap || SPACING.sm,
+    marginTop: SPACING.lg,
   },
-  checkinButton: {
+  actionButton: {
     flex: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    height: SPACING.button,
+    borderRadius: BORDER_RADIUS.button,
     alignItems: 'center',
-    borderWidth: 2,
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   doneButton: {
-    borderColor: '#10b981',
-    backgroundColor: '#ecfdf5',
+    backgroundColor: COLORS.success,
   },
   partialButton: {
-    borderColor: '#f59e0b',
-    backgroundColor: '#fffbeb',
+    backgroundColor: COLORS.warning,
   },
   missedButton: {
-    borderColor: '#ef4444',
-    backgroundColor: '#fef2f2',
+    backgroundColor: COLORS.danger,
   },
-  checkinButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+  actionButtonText: {
+    ...TYPOGRAPHY.button,
+    color: COLORS.textPrimary,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  spacer: {
+    flex: 1,
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: SPACING.xl * 2,
+    paddingHorizontal: SPACING.screen,
+  },
+  emptyIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: COLORS.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.xl,
+    borderWidth: 2,
+    borderColor: COLORS.primary + '40',
+    ...SHADOWS.md,
+  },
+  emptyIcon: {
+    fontSize: 48,
   },
   emptyTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 12,
+    ...TYPOGRAPHY.goalTitle,
+    fontSize: 26,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.md,
+    textAlign: 'center',
   },
   emptySubtitle: {
+    ...TYPOGRAPHY.goalMdd,
     fontSize: 16,
-    color: '#6b7280',
+    color: COLORS.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: SPACING.xl * 2,
     lineHeight: 24,
+    maxWidth: 320,
+    opacity: 0.8,
+  },
+  emptyButtonContainer: {
+    width: '100%',
+    maxWidth: 240,
   },
   createButton: {
-    backgroundColor: '#3b82f6',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: BORDER_RADIUS.button,
+    minHeight: SPACING.button,
   },
   createButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '600',
+    ...TYPOGRAPHY.button,
+    color: COLORS.textPrimary,
   },
   adContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: SPACING.screen,
   },
 })

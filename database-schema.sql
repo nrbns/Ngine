@@ -14,6 +14,8 @@ create table resolutions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete cascade,
   title text not null,
+  why text not null, -- Why this resolution is important
+  duration text not null, -- Duration in days (e.g., "14 Days", "30 Days")
   mdd text not null, -- Minimum Daily Discipline
   status text default 'active' check (status in ('active', 'completed', 'paused')),
   created_at timestamp default now(),
@@ -26,7 +28,8 @@ create table checkins (
   resolution_id uuid references resolutions(id) on delete cascade,
   date date not null,
   execution text not null check (execution in ('yes', 'partial', 'no')),
-  energy int not null check (energy >= 1 and energy <= 5),
+  energy int check (energy is null or (energy >= 0 and energy <= 5)), -- null for auto-missed, 0-5 for manual
+  blocker text, -- Optional: what blocked you today
   created_at timestamp default now(),
   unique(resolution_id, date) -- One check-in per goal per day
 );
@@ -102,3 +105,4 @@ create policy "Users can create own proofs" on goal_proofs
       and resolutions.user_id = auth.uid()
     )
   );
+

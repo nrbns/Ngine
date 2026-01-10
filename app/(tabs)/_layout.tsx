@@ -1,5 +1,7 @@
 import { Tabs } from 'expo-router'
 import { View, Text, StyleSheet } from 'react-native'
+import { COLORS } from '../../lib/colors'
+import { SPACING, SHADOWS } from '../../lib/design-tokens'
 
 function TabBarIcon({ name, focused }: { name: string; focused: boolean }) {
   const icons = {
@@ -33,8 +35,10 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: '#3b82f6',
-        tabBarInactiveTintColor: '#6b7280',
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.textTertiary,
+        tabBarShowLabel: true,
+        contentStyle: { backgroundColor: 'transparent' },
       }}
     >
       <Tabs.Screen
@@ -59,28 +63,40 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.card,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    height: 80,
-    paddingBottom: 20,
-    paddingTop: 8,
+    borderTopColor: COLORS.border + '40',
+    height: 70,
+    paddingBottom: SPACING.md,
+    paddingTop: SPACING.sm,
+    ...SHADOWS.lg,
+    elevation: 10,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   icon: {
-    fontSize: 20,
+    fontSize: 24,
     textAlign: 'center',
+    opacity: 0.7,
   },
   iconFocused: {
-    color: '#3b82f6',
+    color: COLORS.primary,
+    opacity: 1,
+    transform: [{ scale: 1.1 }],
   },
   label: {
-    fontSize: 12,
-    color: '#6b7280',
+    fontSize: 11,
+    color: COLORS.textTertiary,
     textAlign: 'center',
     fontWeight: '500',
+    marginTop: 2,
+    letterSpacing: 0.3,
   },
   labelFocused: {
-    color: '#3b82f6',
-    fontWeight: '600',
+    color: COLORS.primary,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 })

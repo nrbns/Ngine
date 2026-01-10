@@ -2,28 +2,67 @@ import React, { useState } from 'react'
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   Alert,
   SafeAreaView,
+  ActivityIndicator,
+  TextInput,
 } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
+import Animated, { withSpring, useSharedValue, useAnimatedStyle, FadeInUp } from 'react-native-reanimated'
+import * as Haptics from 'expo-haptics'
 import { supabase } from '../lib/supabase'
+import { generateCheckinMotivation } from '../lib/ai-motivation'
+import { COLORS } from '../lib/colors'
+import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../lib/design-tokens'
 
 export default function CheckInScreen() {
   const router = useRouter()
   const { goalId, status } = useLocalSearchParams<{ goalId: string; status: string }>()
-  const [energy, setEnergy] = useState(3)
+  const [energy, setEnergy] = useState<number | null>(null)
+  const [blocker, setBlocker] = useState('')
   const [loading, setLoading] = useState(false)
+  
+  // Animation for energy chips - create individual shared values
+  const chip1Scale = useSharedValue(1)
+  const chip2Scale = useSharedValue(1)
+  const chip3Scale = useSharedValue(1)
+  const chip4Scale = useSharedValue(1)
+  const chip5Scale = useSharedValue(1)
+  
+  const getChipScale = (level: number) => {
+    switch(level) {
+      case 1: return chip1Scale
+      case 2: return chip2Scale
+      case 3: return chip3Scale
+      case 4: return chip4Scale
+      case 5: return chip5Scale
+      default: return chip1Scale
+    }
+  }
+  
+  const getChipAnimatedStyle = (level: number) => {
+    const scale = getChipScale(level)
+    return useAnimatedStyle(() => ({
+      transform: [{ scale: scale.value }],
+    }))
+  }
 
   const submitCheckin = async () => {
     if (!goalId || !status) return
 
+    if (energy === null) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      Alert.alert('Missing Energy', 'Please select your energy level.')
+      return
+    }
+
     setLoading(true)
+
     try {
       let { data: { user } } = await supabase.auth.getUser()
 
-      // Auto sign-in anonymously if no user
       if (!user) {
         const { data: authData, error: authError } = await supabase.auth.signInAnonymously()
         if (authError) {
@@ -42,101 +81,191 @@ export default function CheckInScreen() {
 
       const today = new Date().toISOString().split('T')[0]
 
+      // Check if Supabase is configured
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL
+      if (!supabaseUrl || supabaseUrl === 'https://placeholder.supabase.co' || supabaseUrl.includes('placeholder')) {
+        Alert.alert(
+          'Supabase Not Configured',
+          'Please set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_KEY in your .env file.',
+          [{ text: 'OK' }]
+        )
+        setLoading(false)
+        return
+      }
+
       const { error } = await supabase
         .from('checkins')
         .insert({
           resolution_id: goalId,
           date: today,
           execution: status,
-          energy: energy,
+          energy: energy || null, // Allow null if somehow energy is 0
+          blocker: blocker.trim() || null,
         })
         .select()
         .single()
 
-      if (error) throw error
-
-      const messages = {
-        yes: 'Great job showing up today!',
-        partial: 'Progress over perfection.',
-        no: 'Tomorrow is a new day.'
+      if (error) {
+        console.error('Check-in insert error:', error)
+        console.error('Error code:', error.code)
+        console.error('Error details:', error.details)
+        
+        let errorMessage = error.message || 'Failed to save check-in'
+        if (error.code === '42501') {
+          errorMessage = 'Permission denied. Please check your Supabase RLS policies.'
+        } else if (error.code === '23505') {
+          errorMessage = 'You have already checked in today.'
+        } else if (error.code === '23503') {
+          errorMessage = 'Goal not found. Please create a goal first.'
+        }
+        
+        throw new Error(errorMessage)
       }
 
-      Alert.alert(
-        'Check-in saved!',
-        messages[status as keyof typeof messages] || 'Check-in recorded.',
-        [
-          {
-            text: 'Add Proof',
-            onPress: () => router.push('/gallery'),
-          },
-          {
-            text: 'Done',
-            style: 'cancel',
-            onPress: () => router.replace('/(tabs)'),
-          }
-        ]
-      )
+      // 300ms delay for perceived processing
+      await new Promise(resolve => setTimeout(resolve, 300))
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      
+      // Generate AI motivational message based on check-in
+      try {
+        // Get goal for context
+        const { data: goalData } = await supabase
+          .from('resolutions')
+          .select('*')
+          .eq('id', goalId)
+          .single()
+        
+        // Get current streak for context
+        const { data: recentCheckins } = await supabase
+          .from('checkins')
+          .select('*')
+          .eq('resolution_id', goalId)
+          .eq('execution', 'yes')
+          .order('date', { ascending: false })
+        
+        const streak = recentCheckins?.length || 0
+        
+        const motivation = generateCheckinMotivation(
+          status as 'yes' | 'partial' | 'no',
+          streak,
+          goalData?.title,
+          energy
+        )
+        
+        // Show motivational alert, then navigate
+        Alert.alert(
+          '✅ Check-in Complete',
+          motivation,
+          [{ text: 'Continue', onPress: () => router.replace('/(tabs)') }]
+        )
+      } catch (motivationError) {
+        // If motivation generation fails, just navigate
+        console.error('Error generating motivation:', motivationError)
+        router.replace('/(tabs)')
+      }
     } catch (err: unknown) {
       console.error('Error saving check-in:', err)
       const error = err as Error
       Alert.alert('Error', error?.message || 'Failed to save check-in')
-    } finally {
       setLoading(false)
+      
+      // Error handled, loading state reset
     }
   }
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Daily Check-In</Text>
-
-        <View style={styles.questionSection}>
+        {/* Question Text */}
+        <Animated.View entering={FadeInUp.duration(200)}>
           <Text style={styles.question}>Did you show up today?</Text>
+        </Animated.View>
 
-          <View style={styles.statusIndicator}>
-            <Text style={styles.statusText}>
-              {status === 'yes' && '✅ Yes'}
-              {status === 'partial' && '🟡 Partial'}
-              {status === 'no' && '❌ No'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.energySection}>
+        {/* ENERGY SELECTOR */}
+        <Animated.View entering={FadeInUp.delay(80).duration(200)} style={styles.energySection}>
           <Text style={styles.energyLabel}>Energy Level</Text>
-          <View style={styles.energySlider}>
-            {[1, 2, 3, 4, 5].map((level) => (
-              <TouchableOpacity
-                key={level}
-                style={[
-                  styles.energyDot,
-                  energy >= level && styles.energyDotActive
-                ]}
-                onPress={() => setEnergy(level)}
-              >
-                <Text style={[
-                  styles.energyNumber,
-                  energy >= level && styles.energyNumberActive
-                ]}>
-                  {level}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.energyChips}>
+            {[1, 2, 3, 4, 5].map((level, index) => {
+              const scale = getChipScale(level)
+              const chipStyle = useAnimatedStyle(() => ({
+                transform: [{ scale: scale.value }],
+              }))
+              
+              return (
+                <Animated.View
+                  key={level}
+                  entering={FadeInUp.delay(100 + index * 50).duration(250)}
+                >
+                  <Pressable
+                    onPress={() => {
+                      Haptics.selectionAsync()
+                      setEnergy(level)
+                      scale.value = withSpring(1.15, {}, () => {
+                        scale.value = withSpring(1)
+                      })
+                    }}
+                  >
+                    <Animated.View
+                      style={[
+                        styles.energyChip,
+                        chipStyle,
+                        {
+                          backgroundColor: energy === level ? COLORS.primary : COLORS.card,
+                          borderColor: energy === level ? COLORS.primary : COLORS.border + '60',
+                        },
+                        energy === level ? SHADOWS.primary : SHADOWS.sm,
+                      ]}
+                    >
+                      <Text style={[
+                        styles.energyChipText,
+                        { color: energy === level ? COLORS.textPrimary : COLORS.textSecondary }
+                      ]}>
+                        {level}
+                      </Text>
+                    </Animated.View>
+                  </Pressable>
+                </Animated.View>
+              )
+            })}
           </View>
-          <Text style={styles.energyDescription}>
-            {energy <= 2 ? 'Low energy' : energy === 3 ? 'Normal' : energy >= 4 ? 'High energy' : ''}
-          </Text>
-        </View>
+        </Animated.View>
 
-        <TouchableOpacity
-          style={styles.saveButton}
+        {/* Optional Input */}
+        <Animated.View entering={FadeInUp.delay(160).duration(200)} style={styles.inputSection}>
+          <TextInput
+            style={styles.input}
+            value={blocker}
+            onChangeText={setBlocker}
+            placeholder="What blocked you? (optional)"
+            placeholderTextColor={COLORS.textTertiary}
+            multiline={false}
+          />
+        </Animated.View>
+
+        {/* Spacer */}
+        <View style={styles.spacer} />
+
+        {/* Confirm Button */}
+        <Animated.View entering={FadeInUp.delay(240).duration(200)}>
+        <Pressable
           onPress={submitCheckin}
-          disabled={loading}
+          disabled={loading || energy === null}
+          style={[
+            styles.confirmButton,
+            {
+              backgroundColor: energy ? COLORS.primary : COLORS.card,
+              opacity: energy ? 1 : 0.6,
+            },
+          ]}
         >
-          <Text style={styles.saveButtonText}>
-            {loading ? 'Saving...' : 'Save Check-In'}
-          </Text>
-        </TouchableOpacity>
+          {loading ? (
+            <ActivityIndicator color={COLORS.text} size="small" />
+          ) : (
+            <Text style={styles.confirmButtonText}>CONFIRM</Text>
+          )}
+        </Pressable>
+        </Animated.View>
       </View>
     </SafeAreaView>
   )
@@ -145,96 +274,89 @@ export default function CheckInScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.background,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111827',
-    textAlign: 'center',
-    marginBottom: 40,
-  },
-  questionSection: {
-    marginBottom: 40,
+    paddingHorizontal: SPACING.screen,
+    paddingTop: SPACING.section,
   },
   question: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#111827',
+    ...TYPOGRAPHY.question,
+    color: COLORS.textPrimary,
     textAlign: 'center',
-    marginBottom: 24,
-  },
-  statusIndicator: {
-    alignItems: 'center',
-  },
-  statusText: {
-    fontSize: 20,
-    fontWeight: '600',
+    marginBottom: SPACING.xl,
   },
   energySection: {
-    marginBottom: 40,
+    marginBottom: SPACING.xl,
+    alignItems: 'center',
   },
   energyLabel: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
-    textAlign: 'center',
-    marginBottom: 24,
+    ...TYPOGRAPHY.label,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.md,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
-  energySlider: {
+  energyChips: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 16,
-    marginBottom: 16,
+    gap: SPACING.energyChipGap || SPACING.md,
   },
-  energyDot: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
+  energyChip: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2.5,
+    overflow: 'hidden',
   },
-  energyDotActive: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
-  },
-  energyNumber: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#6b7280',
-  },
-  energyNumberActive: {
-    color: '#ffffff',
-  },
-  energyDescription: {
-    fontSize: 16,
-    color: '#6b7280',
+  energyChipText: {
+    fontSize: 22,
+    fontWeight: '800',
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
-  saveButton: {
-    backgroundColor: '#10b981',
-    paddingVertical: 18,
-    paddingHorizontal: 32,
-    borderRadius: 12,
+  inputSection: {
+    marginBottom: SPACING.lg,
+  },
+  input: {
+    borderWidth: 2,
+    borderColor: COLORS.border + '60',
+    borderRadius: BORDER_RADIUS.button,
+    padding: SPACING.md,
+    fontSize: 16,
+    color: COLORS.textPrimary,
+    backgroundColor: COLORS.card,
+    minHeight: SPACING.button,
+    ...SHADOWS.sm,
+    // Focus state handled by React Native automatically
+  },
+  spacer: {
+    flex: 1,
+  },
+  confirmButton: {
+    backgroundColor: COLORS.primary,
+    height: SPACING.button,
+    borderRadius: BORDER_RADIUS.button,
     alignItems: 'center',
-    marginTop: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    justifyContent: 'center',
+    marginBottom: SPACING.screen,
+    ...SHADOWS.primary,
+    overflow: 'hidden',
   },
-  saveButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '600',
+  confirmButtonDisabled: {
+    backgroundColor: COLORS.border,
+    opacity: 0.6,
+  },
+          confirmButtonText: {
+    ...TYPOGRAPHY.button,
+    color: COLORS.textPrimary,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
 })

@@ -19,16 +19,21 @@ export interface Resolution {
   id: string
   user_id: string
   title: string
+  why: string
+  duration: string
   mdd: string
   status: string
   created_at: string
+  updated_at?: string
 }
 
 export interface Checkin {
   id: string
   resolution_id: string
   execution: 'yes' | 'partial' | 'no'
-  energy: number
+  energy: number | null
+  blocker?: string | null
+  date: string
   created_at: string
 }
 
