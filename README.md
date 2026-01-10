@@ -1,5 +1,8 @@
 # NGINE v0.1
 
+[![CI](https://github.com/nrbns/Ngine/actions/workflows/ci.yml/badge.svg)](https://github.com/nrbns/Ngine/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **Daily habit tracking app with real-time sync, clean UI, and monetization.**
 
 A production-ready mobile app for tracking daily resolutions with instant sync across devices, beautiful animations, and AdMob integration.
