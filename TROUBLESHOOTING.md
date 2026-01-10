@@ -96,14 +96,146 @@ npm run start
 - `23503` - Foreign key violation (user doesn't exist)
 - `23505` - Unique constraint violation (duplicate check-in)
 
+## AdMob Issues
+
+### Issue: Ads not showing / AdMob errors
+
+**Possible Causes:**
+
+1. **Test IDs Not Used During Development**
+   - Always use test ad IDs during development
+   - Test IDs are provided in `.env.example`
+   - Real ad IDs only work in production builds
+
+2. **AdMob Account Not Set Up**
+   - Create an AdMob account at https://apps.admob.com
+   - Create an app and get your App ID
+   - Create ad units (Banner, Rewarded) and get ad unit IDs
+
+3. **Simulator vs Physical Device**
+   - Ads may not work properly on simulators/emulators
+   - Test on physical devices for accurate behavior
+
+**How to Fix:**
+
+1. **Use Test IDs** (included in `.env.example`):
+   ```env
+   EXPO_PUBLIC_ADMOB_APP_ID=ca-app-pub-3940256099942544~3347511713
+   EXPO_PUBLIC_ADMOB_BANNER_ID=ca-app-pub-3940256099942544/6300978111
+   ```
+
+2. **Verify Configuration:**
+   - Check `lib/ads.tsx` and `lib/ads.web.tsx` are properly configured
+   - Verify environment variables are loaded: `console.log(process.env.EXPO_PUBLIC_ADMOB_APP_ID)`
+
+3. **Check AdMob Dashboard:**
+   - Ensure app is approved and active
+   - Verify ad units are active and not paused
+
+## Realtime Subscription Issues
+
+### Issue: Changes not syncing across devices
+
+**Possible Causes:**
+
+1. **Realtime Not Enabled in Supabase**
+   - Go to Supabase Dashboard → Database → Replication
+   - Enable replication for tables: `resolutions`, `checkins`, `goal_proofs`
+
+2. **Subscription Cleanup**
+   - Check `lib/useRealtime.ts` properly unsubscribes on unmount
+   - Multiple subscriptions can cause performance issues
+
+**How to Fix:**
+
+1. **Enable Realtime in Supabase:**
+   - Supabase Dashboard → Database → Replication
+   - Enable for each table that needs real-time updates
+
+2. **Check Subscription Code:**
+   ```typescript
+   // Ensure cleanup in useEffect
+   useEffect(() => {
+     const channel = supabase.channel('channel-name')
+     // ... subscribe logic
+     
+     return () => {
+       channel.unsubscribe() // Important!
+     }
+   }, [])
+   ```
+
+## Expo SDK Version Conflicts
+
+### Issue: Build errors or dependency conflicts
+
+**Possible Causes:**
+- Expo SDK version mismatch
+- Native module compatibility issues
+- Metro bundler cache issues
+
+**How to Fix:**
+
+```bash
+# Clear all caches
+npx expo start --clear
+
+# Reinstall dependencies
+rm -rf node_modules
+rm package-lock.json
+npm install
+
+# For EAS builds, check eas.json configuration
+# Ensure SDK version matches package.json
+```
+
+## Common Pitfalls
+
+### 1. Forgetting to Enable Anonymous Auth
+- **Symptom**: App loads but can't create goals
+- **Fix**: Supabase Dashboard → Authentication → Providers → Enable "Anonymous"
+
+### 2. RLS Policies Too Restrictive
+- **Symptom**: Can't read/write data
+- **Fix**: Check `database-schema.sql` includes correct RLS policies
+- **Test**: Try with RLS disabled temporarily to isolate issue
+
+### 3. Environment Variables Not Loading
+- **Symptom**: Using placeholder values
+- **Fix**: 
+  - Ensure `.env` file exists in root directory
+  - Restart Metro bundler after changing `.env`
+  - Variables must start with `EXPO_PUBLIC_` for Expo
+
+### 4. Metro Bundler Cache Issues
+- **Symptom**: Changes not reflecting, weird errors
+- **Fix**: `npx expo start --clear` (clears cache)
+
+### 5. TypeScript Errors After Updates
+- **Symptom**: Type errors in IDE/console
+- **Fix**: 
+  ```bash
+  npx tsc --noEmit  # Check for type errors
+  # Or restart TypeScript server in IDE
+  ```
+
 ## Still Having Issues?
 
-1. Check browser console (F12) for specific errors
-2. Verify Supabase dashboard shows tables exist
-3. Test Supabase connection in browser console:
+1. **Check browser console** (F12) for specific error messages
+2. **Verify Supabase dashboard** shows tables exist and RLS policies are set
+3. **Test environment variables** in browser console:
    ```javascript
    // In browser console
-   console.log(process.env.EXPO_PUBLIC_SUPABASE_URL)
+   console.log('Supabase URL:', process.env.EXPO_PUBLIC_SUPABASE_URL)
+   console.log('Supabase Key:', process.env.EXPO_PUBLIC_SUPABASE_KEY?.substring(0, 20) + '...')
    ```
+4. **Check Supabase Logs:**
+   - Supabase Dashboard → Logs → API Logs
+   - Look for failed requests and error codes
+5. **Open an Issue:**
+   - Include error messages from console
+   - Include relevant code snippets
+   - Include steps to reproduce
+   - Check [existing issues](https://github.com/nrbns/Ngine/issues) first
 
 

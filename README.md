@@ -13,15 +13,22 @@ A production-ready mobile app for tracking daily resolutions with instant sync a
 - **Real-Time Sync**: Instant updates across all devices via Supabase Realtime
 - **Integrity Dots**: Visual representation of your last 5 days
 - **Progress Metrics**: Track days showed up and resets overcome
-- **Recovery Mode**: Graceful handling of missed days
+- **Recovery Mode**: Graceful handling of missed days with comeback messages
+- **Auto-Missed Check-Ins**: Automatically marks missed days after 9 PM
+- **Resolution Completion Tracking**: Automatically completes resolutions after duration
+- **AI-Powered Motivation**: Context-aware motivational messages based on your progress
+- **Onboarding Flow**: Smooth first-time user experience with guided setup
 
 ### UI/UX
-- **Dark Theme**: Calm, modern dark color scheme
-- **Smooth Animations**: 60fps animations with react-native-reanimated
+- **Dark Theme**: Calm, modern dark color scheme with subtle gradients
+- **Smooth Animations**: 60fps animations with react-native-reanimated and staggered entrances
 - **Haptic Feedback**: Tactile responses for all interactions
 - **Optimistic UI**: Instant feedback before backend sync
-- **Live Status Indicator**: Shows connection and sync status
+- **Live Status Indicator**: Shows connection and sync status in real-time
 - **Offline Support**: Works offline with automatic sync when online
+- **Shimmer Loading States**: Beautiful loading skeletons for better perceived performance
+- **Empty States**: Helpful, visually appealing empty states throughout the app
+- **Enhanced Visual Hierarchy**: Improved spacing, shadows, and typography
 
 ### Monetization
 - **Banner Ads**: Non-intrusive banner placement
@@ -29,11 +36,14 @@ A production-ready mobile app for tracking daily resolutions with instant sync a
 - **AdMob Integration**: Ready for production ad serving
 
 ### Technical
-- **Expo Router**: File-based navigation
+- **Expo Router**: File-based navigation with modal presentations
 - **Zustand State Management**: Global state with realtime updates
-- **Supabase Backend**: PostgreSQL with Row Level Security
-- **TypeScript**: Full type safety
-- **EAS Build**: Production-ready Android builds
+- **Supabase Backend**: PostgreSQL with Row Level Security (RLS)
+- **TypeScript**: Full type safety across the codebase
+- **EAS Build**: Production-ready Android builds with Play Store submission
+- **Design Tokens**: Centralized design system (colors, spacing, typography, shadows)
+- **Realtime Subscriptions**: Efficient filtered subscriptions for instant updates
+- **Daily Automation**: Automated daily checks for completion and missed check-ins
 
 ## 🚀 Quick Start
 
@@ -54,19 +64,24 @@ npm install
 
 # Setup environment
 cp .env.example .env
-# Edit .env with your Supabase credentials
+# Edit .env with your actual credentials (see .env.example for details)
 ```
 
 ### Environment Variables
 
-Create `.env` file:
+Copy `.env.example` to `.env` and fill in your values:
 
-```env
-EXPO_PUBLIC_SUPABASE_URL=your_supabase_project_url
-EXPO_PUBLIC_SUPABASE_KEY=your_supabase_anon_key
-EXPO_PUBLIC_ADMOB_APP_ID=your_admob_app_id
-EXPO_PUBLIC_ADMOB_BANNER_ID=your_banner_ad_unit_id
+```bash
+cp .env.example .env
 ```
+
+Required variables:
+- `EXPO_PUBLIC_SUPABASE_URL` - Get from Supabase Dashboard → Settings → API
+- `EXPO_PUBLIC_SUPABASE_KEY` - Get from Supabase Dashboard → Settings → API (anon/public key)
+- `EXPO_PUBLIC_ADMOB_APP_ID` - Optional, for ads (use test IDs during development)
+- `EXPO_PUBLIC_ADMOB_BANNER_ID` - Optional, for banner ads (use test IDs during development)
+
+**Note**: Never commit `.env` file to git. It's already in `.gitignore`.
 
 ### Database Setup
 
@@ -200,11 +215,31 @@ Daily check-in reminders are scheduled automatically:
 
 ## 🐛 Troubleshooting
 
-See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for common issues:
-- Goals not saving
-- Blank screens
-- Animation issues
-- Supabase connection problems
+See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for detailed solutions to common issues:
+
+### Quick Fixes
+
+**Blank Screen After Installation:**
+- Clear Metro cache: `npx expo start --clear`
+- Verify `.env` file exists and has correct values
+- Check browser console (F12) for error messages
+
+**Goals Not Saving:**
+- Ensure Supabase RLS policies are set up (see `database-schema.sql`)
+- Enable Anonymous authentication in Supabase Dashboard
+- Verify environment variables are correct
+
+**AdMob Errors:**
+- Use test ad IDs during development (included in `.env.example`)
+- Check AdMob account status and app configuration
+- Ads only work on physical devices, not simulators
+
+**Supabase Connection Issues:**
+- Verify `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_KEY` in `.env`
+- Check Supabase project status in Dashboard
+- Ensure RLS policies allow anonymous access
+
+For more detailed troubleshooting, see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 
 ## 📝 Roadmap
 
@@ -223,17 +258,40 @@ See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for common issues:
 - [ ] Widget support
 - [ ] Dark/Light theme toggle
 
+## 📸 Screenshots
+
+_Coming soon! Screenshots will be added to showcase the app's UI and features._
+
+**Screens to showcase:**
+- Dashboard with active goal
+- Daily check-in flow
+- Progress visualization with integrity dots
+- Recovery mode
+- Proof gallery
+- Onboarding experience
+
 ## 🤝 Contributing
 
-Contributions welcome! Please:
+We welcome contributions! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+
+**Quick Start for Contributors:**
 1. Fork the repository
-2. Create a feature branch
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
-4. Submit a pull request
+4. Commit with clear messages (`git commit -m 'Add: amazing feature'`)
+5. Push to your branch (`git push origin feature/amazing-feature`)
+6. Open a Pull Request
+
+**Areas where we need help:**
+- 🐛 Bug fixes
+- ✨ New features
+- 📚 Documentation improvements
+- 🎨 UI/UX enhancements
+- 🧪 Testing
 
 ## 📄 License
 
-Private project - All rights reserved
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 

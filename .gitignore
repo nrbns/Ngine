@@ -26,3 +26,12 @@ dist-ssr
 # Expo local files (should not be committed)
 .expo/
 
+# Environment variables (should not be committed)
+.env
+.env.local
+.env.*.local
+
+# Screenshots placeholder (optional - can be committed if wanted)
+# Uncomment if you don't want to commit screenshots
+# screenshots/*.png
+# screenshots/*.jpg
