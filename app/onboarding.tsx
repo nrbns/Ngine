@@ -16,8 +16,8 @@ import Animated, {
   withSpring,
   interpolate,
 } from 'react-native-reanimated'
-import * as Haptics from 'expo-haptics'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { impactAsync, notificationAsync, ImpactFeedbackStyle, NotificationFeedbackType } from '../lib/utils/haptics'
 import { COLORS } from '../lib/config/colors'
 import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../lib/config/design-tokens'
 
@@ -72,7 +72,7 @@ export default function OnboardingScreen() {
   const slideAnim = useSharedValue(0)
 
   const handleNext = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    impactAsync(ImpactFeedbackStyle.Light)
     
     if (currentPage < ONBOARDING_DATA.length - 1) {
       const nextPage = currentPage + 1
@@ -84,20 +84,20 @@ export default function OnboardingScreen() {
   }
 
   const handleSkip = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    impactAsync(ImpactFeedbackStyle.Medium)
     await setOnboardingComplete()
     router.replace('/(tabs)')
   }
 
   const handleFinish = async () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+    notificationAsync(NotificationFeedbackType.Success)
     await setOnboardingComplete()
     router.replace('/(tabs)')
   }
 
   const handlePrevious = () => {
     if (currentPage > 0) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+      impactAsync(ImpactFeedbackStyle.Light)
       const prevPage = currentPage - 1
       setCurrentPage(prevPage)
       slideAnim.value = withSpring(prevPage)

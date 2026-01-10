@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router'
 import { supabase } from '../lib/api/supabase'
 import { COLORS } from '../lib/config/colors'
 import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../lib/config/design-tokens'
-import * as Haptics from 'expo-haptics'
+import { selectionAsync, impactAsync, ImpactFeedbackStyle } from '../lib/utils/haptics'
 
 const DURATION_OPTIONS = ['7 Days', '14 Days', '30 Days', '60 Days', '90 Days']
 
@@ -176,7 +176,7 @@ export default function CreateGoalScreen() {
             <TouchableOpacity
               style={styles.selectInput}
               onPress={() => {
-                Haptics.selectionAsync()
+                selectionAsync()
                 setShowDurationPicker(true)
               }}
             >
@@ -213,7 +213,7 @@ export default function CreateGoalScreen() {
               (!title.trim() || !why.trim() || !mdd.trim()) && styles.saveButtonDisabled
             ]}
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+              impactAsync(ImpactFeedbackStyle.Medium)
               saveGoal()
             }}
             disabled={loading || !title.trim() || !why.trim() || !mdd.trim()}
@@ -254,7 +254,7 @@ export default function CreateGoalScreen() {
                     duration === option && styles.durationOptionSelected,
                   ]}
                   onPress={() => {
-                    Haptics.selectionAsync()
+                    selectionAsync()
                     setDuration(option)
                     setShowDurationPicker(false)
                   }}

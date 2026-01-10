@@ -14,7 +14,7 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
 } from 'react-native-reanimated'
-import * as Haptics from 'expo-haptics'
+import { impactAsync, ImpactFeedbackStyle } from '../../lib/utils/haptics'
 import { supabase, Resolution } from '../../lib/api/supabase'
 import { BannerAdComponent } from '../../lib/api/ads.web'
 import { GoalCard, AnimatedIdentityText, RealtimeIndicator, TactileButton, LoadingSkeleton } from '../../components'
@@ -158,7 +158,7 @@ export default function HomeScreen() {
     }
 
     // Haptic feedback
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    impactAsync(ImpactFeedbackStyle.Medium)
     
     // Spring animation
     buttonScale.value = withSpring(0.96, {}, () => {

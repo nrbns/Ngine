@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native'
 import { useRouter } from 'expo-router'
-import * as Haptics from 'expo-haptics'
+import { impactAsync, notificationAsync, ImpactFeedbackStyle, NotificationFeedbackType } from '../lib/utils/haptics'
 import { supabase } from '../lib/api/supabase'
 import { useNgineStore } from '../lib/store'
 import { TactileButton } from '../components'
@@ -69,7 +69,7 @@ export default function RecoveryScreen() {
       return
     }
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    impactAsync(ImpactFeedbackStyle.Medium)
     setLoading(true)
 
     try {
@@ -99,7 +99,7 @@ export default function RecoveryScreen() {
       // For now, we'll just navigate back - the user can start fresh tomorrow
       // In future, could add a "reset_date" field to track resets
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      notificationAsync(NotificationFeedbackType.Success)
       
       // Small delay for UX
       await new Promise(resolve => setTimeout(resolve, 300))

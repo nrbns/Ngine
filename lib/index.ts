@@ -5,6 +5,7 @@ export { useRealtime } from './hooks/useRealtime'
 export * from './utils/ai-motivation'
 export * from './utils/daily-check'
 export * from './utils/realtime'
+export * from './utils/haptics'
 
 // API
 export * from './api/supabase'

@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import Animated, { withSpring, useSharedValue, useAnimatedStyle, FadeInUp } from 'react-native-reanimated'
-import * as Haptics from 'expo-haptics'
+import { notificationAsync, selectionAsync, NotificationFeedbackType } from '../lib/utils/haptics'
 import { supabase } from '../lib/api/supabase'
 import { generateCheckinMotivation } from '../lib/utils/ai-motivation'
 import { COLORS } from '../lib/config/colors'
@@ -52,8 +52,8 @@ export default function CheckInScreen() {
   const submitCheckin = async () => {
     if (!goalId || !status) return
 
-    if (energy === null) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      if (energy === null) {
+      notificationAsync(NotificationFeedbackType.Error)
       Alert.alert('Missing Energy', 'Please select your energy level.')
       return
     }
@@ -125,7 +125,7 @@ export default function CheckInScreen() {
       // 300ms delay for perceived processing
       await new Promise(resolve => setTimeout(resolve, 300))
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      notificationAsync(NotificationFeedbackType.Success)
       
       // Generate AI motivational message based on check-in
       try {
@@ -199,7 +199,7 @@ export default function CheckInScreen() {
                 >
                   <Pressable
                     onPress={() => {
-                      Haptics.selectionAsync()
+                      selectionAsync()
                       setEnergy(level)
                       scale.value = withSpring(1.15, {}, () => {
                         scale.value = withSpring(1)

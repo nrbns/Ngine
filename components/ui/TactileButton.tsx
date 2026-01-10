@@ -1,6 +1,6 @@
 import React, { useRef } from 'react'
 import { TouchableOpacity, Text, StyleSheet, Animated } from 'react-native'
-import * as Haptics from 'expo-haptics'
+import { impactAsync, ImpactFeedbackStyle } from '../../lib/utils/haptics'
 import { COLORS } from '../../lib/config/colors'
 import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../../lib/config/design-tokens'
 import { SCALE, ANIMATION_TIMINGS } from '../../lib/config/animations'
@@ -23,7 +23,7 @@ export const TactileButton: React.FC<TactileButtonProps> = ({
   const handlePressIn = () => {
     if (disabled) return
     
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    impactAsync(ImpactFeedbackStyle.Light)
     Animated.timing(scaleAnim, {
       toValue: SCALE.pressed,
       duration: ANIMATION_TIMINGS.micro,
@@ -42,7 +42,7 @@ export const TactileButton: React.FC<TactileButtonProps> = ({
 
   const handlePress = () => {
     if (disabled) return
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    impactAsync(ImpactFeedbackStyle.Medium)
     onPress()
   }
 

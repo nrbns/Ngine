@@ -10,7 +10,7 @@ import {
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import Animated, { FadeInUp } from 'react-native-reanimated'
-import * as Haptics from 'expo-haptics'
+import { selectionAsync, impactAsync, notificationAsync, ImpactFeedbackStyle, NotificationFeedbackType } from '../lib/utils/haptics'
 import { COLORS } from '../lib/config/colors'
 import { SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../lib/config/design-tokens'
 
@@ -33,7 +33,7 @@ export default function SetFocusAreasScreen() {
   const [newArea, setNewArea] = useState('')
 
   const toggleFocusArea = (id: string) => {
-    Haptics.selectionAsync()
+    selectionAsync()
     setFocusAreas(prev =>
       prev.map(area =>
         area.id === id ? { ...area, selected: !area.selected } : area
@@ -43,7 +43,7 @@ export default function SetFocusAreasScreen() {
 
   const addFocusArea = () => {
     if (newArea.trim()) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      impactAsync(ImpactFeedbackStyle.Medium)
       setFocusAreas(prev => [
         ...prev,
         { id: Date.now().toString(), name: newArea.trim(), selected: true },
@@ -53,12 +53,12 @@ export default function SetFocusAreasScreen() {
   }
 
   const removeFocusArea = (id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    impactAsync(ImpactFeedbackStyle.Light)
     setFocusAreas(prev => prev.filter(area => area.id !== id))
   }
 
   const handleSave = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+    notificationAsync(NotificationFeedbackType.Success)
     router.back()
   }
 
