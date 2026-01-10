@@ -261,36 +261,17 @@ For more detailed troubleshooting, see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md
 - [ ] Widget support
 - [ ] Dark/Light theme toggle
 
-## 📸 Screenshots
-
-_Coming soon! Screenshots will be added to showcase the app's UI and features._
-
-**Screens to showcase:**
-- Dashboard with active goal
-- Daily check-in flow
-- Progress visualization with integrity dots
-- Recovery mode
-- Proof gallery
-- Onboarding experience
 
 ## 🤝 Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+Contributions welcome! 
 
-**Quick Start for Contributors:**
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
 4. Commit with clear messages (`git commit -m 'Add: amazing feature'`)
 5. Push to your branch (`git push origin feature/amazing-feature`)
 6. Open a Pull Request
-
-**Areas where we need help:**
-- 🐛 Bug fixes
-- ✨ New features
-- 📚 Documentation improvements
-- 🎨 UI/UX enhancements
-- 🧪 Testing
 
 ## 📄 License
 
