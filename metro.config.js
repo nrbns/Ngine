@@ -8,8 +8,12 @@ const config = getDefaultConfig(__dirname);
 config.resolver.sourceExts = ['web.tsx', 'web.ts', ...config.resolver.sourceExts];
 
 // Block Jimp completely - it causes MIME errors and isn't needed
+// Ensure blockList is an array before spreading
+const existingBlockList = Array.isArray(config.resolver.blockList) 
+  ? config.resolver.blockList 
+  : (config.resolver.blockList ? [config.resolver.blockList] : []);
 config.resolver.blockList = [
-  ...(config.resolver.blockList || []),
+  ...existingBlockList,
   /node_modules\/jimp-compact\/.*/,
   /node_modules\/@jimp\/.*/,
   /jimp.*/,
